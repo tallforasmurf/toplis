@@ -526,7 +526,7 @@ class Board(QFrame):
     def setShapeAt(self, x:int, y:int, shape:T_mo):
         '''
         Install a T_mo into a cell of the board. That marks the cell
-        as one active piece cannot enter, and gives it a color.
+        as one the active piece cannot enter, and gives it a color.
         '''
         self.board[(y * Board.Columns) + x] = shape
         #print('shape {} at x {} y {}'.format(shape.t_name,x,y))
@@ -563,7 +563,7 @@ class Board(QFrame):
         We built the list of filled rows from low indexes (visual bottom of
         the board) to high. But we want to remove them in the opposite
         sequence, from the visually upper, down. This is because if two
-        filled rows are not contiguous we want to remove the visually higher
+        filled rows are not contiguous we need to remove the visually higher
         one first.
         '''
         rowsToRemove.reverse()
