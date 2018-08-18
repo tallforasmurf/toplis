@@ -68,7 +68,7 @@ the color in (the only) N tetronimo is never queried.
 '''
 
 T_Colors = {
-    T_ShapeNames.N : QColor(Qt.transparent),
+    T_ShapeNames.N : QColor(204,204,204,32),
     T_ShapeNames.O : QColor('yellow'),
     T_ShapeNames.I : QColor('cyan'),
     T_ShapeNames.T : QColor('purple'),
@@ -608,13 +608,10 @@ class Board(QFrame):
 
         for i in range(Board.Rows):
             for j in range(Board.Columns):
-                shape = self.shapeAt(j, Board.Rows - i - 1)
-
-                if shape is not NO_T_mo:
-                    self.drawSquare(painter,
-                                    rect.left() + j * self.cellWidth(),
-                                    boardTop + i * self.cellHeight(),
-                                    shape)
+                self.drawSquare(painter,
+                                rect.left() + j * self.cellWidth(),
+                                boardTop + i * self.cellHeight(),
+                                self.shapeAt(j, Board.Rows - i - 1))
 
         if self.curPiece is not NO_T_mo:
             '''
