@@ -1,9 +1,9 @@
 '''
-        Standard Tetris
+        Basic Tetris
 
 This is a Tetris game implemented using PyQt5.
 
-It takes many implementation hints from Jan Bodnar's "Tetris in PyQt"
+It is basically a line-by-line rewrite of Jan Bodnar's "Tetris in PyQt"
 tutorial found at: http://zetcode.com/gui/pyqt5/tetris/
 
 The game is made to conform to the Tetris Guideline for play as described at
@@ -37,10 +37,11 @@ import enum
 '''
     Defining the standard Tetronimo shapes and colors.
 
-Naming the seven Tetronimoes via an IntEnum. 'O', 'I' and so forth are the
+Name the seven Tetronimoes via an IntEnum. 'O', 'I', 'T' and so forth are the
 standarized names for the shapes.
 
-The 'N' Tetronimo is used once
+The 'N' Tetronimo is the non-shape that appears in any empty cell of the
+board. Only one 'N' is ever instantiated, as the global NO_T_mo.
 '''
 
 class T_ShapeNames(enum.IntEnum):
@@ -55,15 +56,15 @@ class T_ShapeNames(enum.IntEnum):
 
 '''
 
-Assigning standardized colors for the Tetronimoes,
-as specified in the Tetris guidelines.
+Assigning standardized colors for the Tetronimoes, as specified in the Tetris
+guidelines.
 
-The color names are given as strings chosen from the list that is returned by
-QColor.colorNames(). (FYI: there are 148 names in that list, alphabetically
-from "aliceblue" to "yellowgreen".)
+The color names are given as strings, chosen from the list of available
+predefined colors that is returned by QColor.colorNames(). (FYI: there are
+148 names in that list, alphabetically from "aliceblue" to "yellowgreen".)
 
-The color Qt.transparent is used for the 'N' tetronimo; however
-the color in (the only) N tetronimo is never queried.
+The special color defined for the 'N' tetronimo is the color of an empty
+board cell.
 
 '''
 
@@ -86,15 +87,14 @@ Per the guidelines, quote,
     "The I and O spawn in the middle columns
      The rest spawn in the left-middle columns"
 
-As I interpret that, if the columns are numbered 0-9, the O spawns in 4, 5,
-the I at 3, 4, 5, 6, and the others (which are all 3 squares wide when
-horizontal) spawn in columns 3, 4, 5.
+As I interpret that, if the columns are numbered 0-9, the O spawns in columns
+4, 5, and the I in columns 3, 4, 5, 6. The others (which are all 3 squares
+wide when horizontal) spawn in columns 3, 4, 5.
 
 As designed by Jan Bodnar, each Tetronimo is described by a list of four
-(x,y) tuples describing four cells centered in an x-y coordinate plane. The
-initial values specify its initial (spawn) rotation where x=0 will correspond
-to column 4 in the 0-9 column field at spawn, and y=0 to row 20 (y=1 is the
-partly-invisible row 21).
+(x,y) tuples that specify four cells centered in an x-y coordinate plane. The
+initial values specify the initial (spawn) rotation of a Tetronimo, where
+(x=0,y=0) corresponds to column 4 row 20.
 
 For example the Z is:
                 (-1,1)(0,1)
@@ -104,10 +104,14 @@ while the L is:
                 (-1,0)(0,0) (1,0)
 
 This design has the very nice property that rotation is easy. (Bodnar does
-not explain this in his tutorial but it is clear in the code.)
+not explain this in his tutorial; one must infer it from the code.)
 
-To rotate a shape left, do: ( (-y,x) for (x,y) in original_shape )
-To rotate a shape right, :  ( (y,-x) for (x,y) in original_shape )
+To rotate a shape left, replace the tuples of the original shape with
+the tuple comprehension,
+
+    ( (-y,x) for (x,y) in original_shape )
+
+To rotate a shape right, use ( (y,-x) for (x,y) in original_shape )
 
 For example if L is ((1,1), (-1,0),(0,0),(1,0))
 L rotated left is   ((-1,1),(0,-1),(0,0),(0,1))
@@ -127,8 +131,10 @@ T_Shapes = {
     }
 
 '''
-Create a "bag" of seven Tetronimo names in random order.
-The bag will be consumed before another is requested.
+Create a "bag" of seven Tetronimo names in random order. The bag will be
+consumed before another is requested. This prevents the frustrations of a
+naive randomizer (like in Bodnar's tutorial) where you can easily get four or
+five I- or Z-tetronimoes close together then go without them for 50 turns.
 '''
 
 def make_bag() -> typing.List[T_ShapeNames] :
@@ -140,19 +146,18 @@ def make_bag() -> typing.List[T_ShapeNames] :
 Define the class of Tetronimo game pieces, T_mo. (Bodnar calls this class
 Shape.)
 
-A game piece knows its shape name and color, and it defines its shape in
-terms of the relative (x,y) of each of its four square cells -- as defined in
-T_Shapes above.
+A game piece knows its shape name and color, and its shape in terms of a
+tuple of the four (x,y) values of each of its cells, as defined in T_Shapes
+above.
 
-These are initialized from T_Shapes. When drawing the active T_mo, it is up
-to the Board to add the actual row and column index to the relative values
-the T_mo retains.
+When drawing the active T_mo, the Board adds the actual row and column index
+to the relative values of the T_mo shape.
 
-A T_mo can rotate, but note: when you call T_mo.rotate_left/right, the called
-T_mo does not modify itself to a new orientation. It returns a NEW T_mo
-intended to replace this one. This is done so that the Board can test a
-rotation. If it is legal, the new T_mo replaces the old; but if it is not
-permitted, the original T_mo is left unchanged.
+A T_mo can rotate, but note that the rotate_left() and rotate_right() methods
+do NOT modify shape of the called T_mo. They return a NEW T_mo intended to
+replace this one. This is done so that the Board can test a rotation. If the
+new, rotated T_mo is legal, it replaces the old; but if it is not permitted,
+the original T_mo is left unchanged.
 
 '''
 
@@ -185,10 +190,12 @@ class T_mo(object):
         return max( (y for (x,y) in self.coords) )
     def y_min(self) -> int :
         return min( (y for (x,y) in self.coords) )
+
     '''
     Return a new T_mo with its shape rotated either left or right. Note that
-    we cannot declare these returns as "-> T_mo" because the name T_mo has not
-    been defined yet! Little flaw in the typing system.
+    we cannot type-declare these methods as "-> T_mo", because when these
+    lines are executed, the name T_mo has not been defined yet! Little flaw
+    in the Python typing system.
     '''
     def rotateLeft(self) :
         new_tmo = T_mo( self.t_name )
@@ -209,8 +216,8 @@ NO_T_mo = T_mo( T_ShapeNames.N )
 '''
 Define the game board. This is where the game is implemented.
 
-The board is set as the central (and currently only) widget of the main
-window. It takes "strong" focus so it will receive all keystroke events.
+The board object is set as the central widget of the main window. It takes
+"strong" focus so it will receive all keystroke events.
 
 It defines a string-valued Qsignal that is connected to the main window's
 status line. At various times it emits a signal that updates the status line.
@@ -228,16 +235,14 @@ and cannot move any further, is it copied into the four board cells where it
 stopped, so that resting location takes on the color of that T_mo.
 
 While it is moving, the current T_mo is not "in" the board cell list. To draw
-the board, we draw the fixed contents (finalized cells) and then draw the
-current T_mo over the top of it. (This saves having to erase the active T_mo
-before redrawing it when it moves or rotates.)
+the board, we draw the fixed contents (finalized cells and empty cells), then
+draw the current T_mo over the top of it. (This saves having to erase the
+active T_mo before redrawing it when it moves or rotates.)
 
 The board creates a QBasicTimer with the timer interval Board.StartingSpeed
 (milliseconds). Each time the interval expires, the timer creates a
 timerEvent that is used to drop the current T_mo. The timer is stopped during
 a pause and restarted.
-
-TODO: timer interval to speed up at score increments.
 
 '''
 
@@ -315,9 +320,6 @@ class Board(QFrame):
         '''
         Called from the parent widget to begin a new game.
         '''
-        if self.isPaused:
-            return # WHY THIS TEST? Y U NO check self.isStarted?
-
         self.isStarted = True
         self.waitForNextTimer = False
         self.completedLines = 0
@@ -348,9 +350,18 @@ class Board(QFrame):
         self.curY = Board.Rows - 2 + self.curPiece.y_min()
 
         if not self.tryMove(self.curPiece, self.curX, self.curY):
+            '''
+            The game is over. Clear the current piece so update will not
+            attempt to display it. Turn off the isStarted flag, potentially a
+            new game could be started now (not implemented in this version).
+            Stop the timer.
+            '''
             self.curPiece = NO_T_mo
-            self.timer.stop()
             self.isStarted = False
+            self.timer.stop()
+            '''
+            Update the status with the final result and cause a repaint.
+            '''
             self.NewStatus.emit(
                 "Game over, {} lines".format(self.completedLines)
                 )
@@ -370,26 +381,21 @@ class Board(QFrame):
         completed by saving the proposed coordinates, and by assigning the
         piece to curPiece. In the case of a translation (left, right or down)
         the newPiece is already the curPiece. In the case of a rotation, the
-        newPiece is a rotated version of the old curPiece.
+        newPiece is a rotated version and replaces the curPiece.
 
         After accepting a change we call the inherited QWidget.update() method
         which schedules a paint event, resulting in a call to paintEvent().
         '''
-        #print('try a {}'.format(newPiece.t_name))
         for i in range(4):
 
             x = newX + newPiece.x(i)
             y = newY + newPiece.y(i)
-            #print( '   at x {} y {}'.format(x,y))
             if x < 0 or x >= Board.Columns:
-                #print( '      fail x')
                 return False
             if y < 0 or y >= Board.Rows:
-                #print( '      fail y')
                 return False
 
             if self.shapeAt(x, y) is not NO_T_mo:
-                #print( '      fail block')
                 return False
 
         self.curPiece = newPiece
@@ -437,8 +443,9 @@ class Board(QFrame):
 
     def togglePause(self):
         '''
-        On the pause key (or other widget?) change the game paused state.
-        Update the status line, and suggest to Qt that we be repainted.
+        On the pause key (or click of a Pause button not implemented) change
+        the game paused state. Update the status line, and suggest to Qt that
+        we be repainted.
         '''
 
         if not self.isStarted:
@@ -452,8 +459,8 @@ class Board(QFrame):
 
         else:
             '''
-            Restart the timer. Note if timer becomes variable with number
-            of lines, this has to pick up the current interval.
+            Restart the timer. Note that when the timer becomes variable,
+            this has to pick up the current interval.
             '''
             self.timer.start(Board.StartingSpeed, self)
             self.NewStatus.emit(str(self.completedLines))
@@ -492,10 +499,10 @@ class Board(QFrame):
 
     def dropDown(self):
         '''
-        The user wants to slam the current piece to the bottom.
-        Note that tryMove, when the move is allowed, calls .update(),
-        so the piece should be drawn in each row as it goes down,
-        creating an animation.
+        The user wants to slam the current piece to the bottom. Note that
+        tryMove, when the move is allowed, calls .update(), so the piece
+        should be drawn in each row as it goes down, creating an animation.
+        However this is not happening -- TODO: investigate.
         '''
         newY = self.curY
         while newY > 0:
@@ -549,6 +556,9 @@ class Board(QFrame):
         '''
         Make a list of the row indexes of full rows. A full row is one that
         contains no empty cells, i.e. no references to NO_T_mo.
+
+        TODO: do this smarter by taking a row-length slice of the board
+        and using "NO_T_mo not in..." the slice.
         '''
         rowsToRemove = []
         for i in range(Board.Rows):
