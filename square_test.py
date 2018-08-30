@@ -51,6 +51,9 @@ class CustomMainWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setMinimumSize(QSize(100,100))
+        policy = self.sizePolicy()
+        policy.setHeightForWidth(True)
+        self.setSizePolicy(policy)
         layout = SquareLayout(self)
         layout.addWidget( RedSquare(None) )
         self.setLayout(layout)
