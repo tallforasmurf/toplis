@@ -25,10 +25,10 @@ class RedSquare(QWidget):
         policy.setControlType(QSizePolicy.ToolButton)
         self.setSizePolicy(policy)
     def hasHeightForWidth(self):
-        print('RedSquare hHFW')
+        #print('RedSquare hHFW')
         return True
     def heightForWidth(self, width):
-        print('RedSquare hFW {}'.format(width))
+        #print('RedSquare hFW {}'.format(width))
         return width
     #def sizeHint(self):
         #width = self.width()
@@ -40,6 +40,17 @@ class RedSquare(QWidget):
         painter = QPainter(self)
         color = QColor('red')
         painter.fillRect(shape,color)
+    def resizeEvent(self, event):
+        # setContentsMargins(left,top,right,bottom)
+        d = self.width()-self.height()
+        if d : # is not zero,
+            mod1 = abs(d)//2
+            mod2 = abs(d)-mod1
+            if d > 0 : # width is greater
+                self.setContentsMargins(mod1,0,mod2,0)
+            else : # height is greater
+                self.setContentsMargins(0,mod1,0,mod2)
+        super().resizeEvent(event)
 
 class SquareLayout(QHBoxLayout):
     def __init__(self, parent):
