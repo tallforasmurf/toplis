@@ -1,6 +1,30 @@
 '''
 Try to make a main window containing a central widget that
 retains a square aspect ratio.
+
+According to many posts in forum.qt.io, what is supposed to work is to
+   * setHeightForWidth(True) in the size policy
+   * set a size policy of Preferred
+   * implement hasHeightForWidth() returning True
+   * implement heightForWidth(w) returning w
+and do this either in the widget, or perhaps in the BoxLayout that
+contains the widget. Or the parent widget, or somewhere.
+
+This is bullshit, frankly. As will be clear in the code below, the
+hasHeightForWidth and heightForWidth methods are either never called, or only
+called during creation of the widget. They are CERTAINLY never called during
+a resize -- regardless of size policy settings.
+
+Another approach is to override the sizeHint() method and return a "hint"
+that has the desired aspect ratio. Also bullshit. That method is also only
+called when the widget is created, and at that time the widget's width bears
+no relation to its preferred or minimum size. Never used during a resize.
+
+What does work is the method shown rather far down in this SO post:
+   https://stackoverflow.com/questions/8211982/qt-resizing-a-qlabel-containing-a-qpixmap-while-keeping-its-aspect-ratio
+In essence, on any resize event, set the object's content margins so as
+to compensate for a disparity between height and width.
+
 '''
 from PyQt5.QtWidgets import (
     QApplication,
