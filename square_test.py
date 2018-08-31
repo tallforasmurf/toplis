@@ -20,7 +20,7 @@ class RedSquare(QWidget):
     ''' square widget that paints itself red'''
     def __init__(self,parent):
         super().__init__(parent)
-        policy = self.sizePolicy()
+        policy = QSizePolicy(QSizePolicy.Preferred,QSizePolicy.Preferred)
         policy.setHeightForWidth(True)
         policy.setControlType(QSizePolicy.ToolButton)
         self.setSizePolicy(policy)
@@ -51,7 +51,7 @@ class CustomMainWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setMinimumSize(QSize(100,100))
-        policy = self.sizePolicy()
+        policy = QSizePolicy(QSizePolicy.Preferred,QSizePolicy.Preferred)
         policy.setHeightForWidth(True)
         self.setSizePolicy(policy)
         layout = SquareLayout(self)
