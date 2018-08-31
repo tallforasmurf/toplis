@@ -30,6 +30,10 @@ class RedSquare(QWidget):
     def heightForWidth(self, width):
         print('RedSquare hFW {}'.format(width))
         return width
+    #def sizeHint(self):
+        #width = self.width()
+        #print('RedSquare sH {}'.format(width))
+        #return QSize(width, self.heightForWidth(width))
     def paintEvent(self, event):
         #print('RedSquare paint')
         shape = self.contentsRect()
@@ -63,6 +67,10 @@ class CustomMainWindow(QWidget):
     def heightForWidth(self, width):
         print('MainWindow hFW {}'.format(width))
         return width
+    #def sizeHint(self):
+        #width = self.width()
+        #print('MainWindow sH {}'.format(width))
+        #return QSize(width, self.heightForWidth(width))
 
 
 if __name__ == "__main__" :
