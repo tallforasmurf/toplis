@@ -28,6 +28,9 @@ from PyQt5.QtCore import (
     Qt,
     QBasicTimer,
     QEvent,
+    QPoint,
+    QSettings,
+    QSize,
     pyqtSignal
     )
 from PyQt5.QtGui import (
@@ -239,20 +242,22 @@ Records high scores and current geometry in settings on shutdown.
 
 class Tetris(QMainWindow):
 
-    def __init__(self, settings):
+    def __init__(self, settings:QSettings):
         super().__init__()
         self.settings = settings
         self.setWindowTitle('Tetris')
+        '''
+        Recover the main window geometry from settings, and the previous high
+        score.
+        '''
+        self.move(self.settings.value("windowPosition", QPoint(50,50)))
+        self.resize(self.settings.value("windowSize",QSize(500, 500)))
+        self.high_score = self.settings.value("highScore",0)
         '''
         Create the game and make it the central widget.
         '''
         self.game = Game(self)
         self.setCentralWidget(self.game)
-        '''
-        Set the main window geometry.
-        TODO: get the geometry from a QSetting
-        '''
-        self.resize(300, 500)
         '''
         Create the Toolbar and populate it.
         '''
@@ -261,6 +266,16 @@ class Tetris(QMainWindow):
         Start the game.
         '''
         self.game.restart()
+
+    '''
+    Reimplement QWindow.closeEvent to save our geometry
+    and the current high score.
+    '''
+    def closeEvent(self, event:QEvent):
+        self.settings.clear()
+        self.settings.setValue("windowSize",self.size())
+        self.settings.setValue("windowPosition",self.pos())
+        self.settings.setValue("highScore",self.high_score)
 
 
 
