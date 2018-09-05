@@ -22,7 +22,9 @@ Board showing the next piece to come.
 
 from PyQt5.QtWidgets import (
     QFrame,
-    QMainWindow
+    QMainWindow,
+    QMessageBox,
+    QToolBar
     )
 from PyQt5.QtCore import (
     Qt,
@@ -35,7 +37,9 @@ from PyQt5.QtCore import (
     )
 from PyQt5.QtGui import (
     QColor,
-    QPainter
+    QIcon,
+    QPainter,
+    QPixmap
     )
 import typing
 import random
@@ -221,13 +225,22 @@ TODO:
 class Game(QFrame):
     def __init__(self, parent):
         super().__init__()
+        self.clear()
 
-    def restart(self):
-        print('restart')
+    def start(self):
+        self.started = True
+        self.ended = False
+        print('started')
 
     def pause(self):
-        print('pause')
+        self.paused = not self.paused
+        print('paused {}'.format(self.paused))
 
+    def clear(self):
+        print('cleared')
+        self.started = False
+        self.paused = False
+        self.ended = True
 
 '''
         Main Window
@@ -249,23 +262,68 @@ class Tetris(QMainWindow):
         '''
         Recover the main window geometry from settings, and the previous high
         score.
+        TODO: decide where high score display goes and initialize it.
         '''
         self.move(self.settings.value("windowPosition", QPoint(50,50)))
         self.resize(self.settings.value("windowSize",QSize(500, 500)))
         self.high_score = self.settings.value("highScore",0)
+
         '''
         Create the game and make it the central widget.
         '''
         self.game = Game(self)
         self.setCentralWidget(self.game)
         '''
-        Create the Toolbar and populate it.
+        Create the ToolBar and populate it with our actions. Connect
+        each action's actionTriggered signal to its relevant slot.
         '''
-        # TODO
-        '''
-        Start the game.
-        '''
-        self.game.restart()
+        self.toolbar = QToolBar()
+        self.addToolBar( self.toolbar )
+        # set up the Play icon and connect it.
+        self.play_action = self.toolbar.addAction(
+            QIcon(QPixmap(':/icon_play.png')),'Play')
+        self.play_action.triggered.connect(self.playAction)
+        # set up the Pause icon and connect it.
+        self.pause_action = self.toolbar.addAction(
+            QIcon(QPixmap(':/icon_pause.png')),'Pause')
+        self.pause_action.triggered.connect(self.pauseAction)
+        # set up the Restart icon and connect it
+        self.reset_action = self.toolbar.addAction(
+            QIcon(QPixmap(':/icon_reset.png')),'Reset')
+        self.reset_action.triggered.connect(self.resetAction)
+        # set the game buttons to enabled or disabled states
+        self.enableButtons()
+
+    '''
+    These slots receive clicks on toolbar icons - probably will
+    be replaced with calls direct into game object.
+    '''
+    def enableButtons(self):
+        self.pause_action.setEnabled(
+            self.game.started and not self.game.paused )
+        self.play_action.setEnabled(
+            not(self.game.started) or self.game.paused )
+        self.reset_action.setEnabled(
+            self.game.started )
+    def playAction(self, toggled:bool):
+        print('Play')
+        if self.game.paused :
+            self.game.pause() # toggle pause to off
+        else :
+            self.game.start()
+        self.enableButtons()
+
+    def pauseAction(self, toggled:bool):
+        print('Pause')
+        self.game.pause()
+        self.enableButtons()
+    def resetAction(self, toggled:bool):
+        print('Reset')
+        ans = QMessageBox.question(
+            self, 'Reset clicked', 'Reset the game? State will be lost.' )
+        if ans == QMessageBox.Ok or ans == QMessageBox.Yes :
+            self.game.clear()
+            self.game.start()
 
     '''
     Reimplement QWindow.closeEvent to save our geometry
@@ -301,7 +359,14 @@ if __name__ == '__main__' :
     the_app.setOrganizationName( "TassoSoft" )
     the_app.setOrganizationDomain( "nodomain.org" )
     the_app.setApplicationName( "Tetris" )
-
+    '''
+    Load the resources (icons) from resources.py, which was
+    prepared using pyrrc5. This has to be done after the app is set up.
+    '''
+    import resources
+    '''
+    Access the QSettings object used by the main window.
+    '''
     from PyQt5.QtCore import QSettings
     the_settings = QSettings()
 
