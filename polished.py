@@ -24,6 +24,7 @@ from PyQt5.QtWidgets import (
     QFrame,
     QMainWindow,
     QMessageBox,
+    QSlider,
     QToolBar
     )
 from PyQt5.QtCore import (
@@ -293,6 +294,21 @@ class Tetris(QMainWindow):
         self.reset_action.triggered.connect(self.resetAction)
         # set the game buttons to enabled or disabled states
         self.enableButtons()
+        # Insert the Mute button and the volume slider after a separator
+        self.toolbar.addSeparator()
+        self.mute_action = self.toolbar.addAction(
+            QIcon(QPixmap(':/icon_mute.png')),'Mute')
+        self.mute_action.triggered.connect(
+            lambda : self.volumeAction(0)
+            )
+        self.volume_slider = QSlider(Qt.Horizontal)
+        self.volume_slider.setTickPosition(QSlider.TicksBothSides)
+        self.volume_slider.setRange(0,99)
+        self.volume_slider.setTickInterval(25)
+        self.volume_slider.setMaximumWidth(250)
+        self.volume_slider.setMinimumWidth(100)
+        self.volume_slider.valueChanged.connect(self.volumeAction)
+        self.toolbar.addWidget(self.volume_slider)
 
     '''
     These slots receive clicks on toolbar icons - probably will
@@ -324,6 +340,12 @@ class Tetris(QMainWindow):
         if ans == QMessageBox.Ok or ans == QMessageBox.Yes :
             self.game.clear()
             self.game.start()
+    '''
+    This slot is called from the valueChanged signal of the volume slider,
+    or directly by on the triggered action of the mute button.
+    '''
+    def volumeAction(self, slider_value:int ) :
+        print('volume {}'.format(slider_value))
 
     '''
     Reimplement QWindow.closeEvent to save our geometry
