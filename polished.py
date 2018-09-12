@@ -42,6 +42,13 @@ from PyQt5.QtGui import (
     QPainter,
     QPixmap
     )
+from PyQt5.QtMultimedia import (
+    QMediaContent,
+    QMediaPlayer,
+    QSoundEffect
+)
+from PyQt5.QtCore import QUrl
+from PyQt5.QtTest import QTest # for qWait
 import typing
 import random
 import enum
@@ -268,12 +275,37 @@ class Tetris(QMainWindow):
         self.move(self.settings.value("windowPosition", QPoint(50,50)))
         self.resize(self.settings.value("windowSize",QSize(500, 500)))
         self.high_score = self.settings.value("highScore",0)
+        '''
+        Create sound effect objects for each of the .wav files loaded in the
+        resources module: move, rotate, drop (manual), settle, line. Load them into
+        a dict so they can be treated as a unit.
+
+        Each QSoundEffect loads its file, then generates the sound with low
+        latency when its play() method is called.
+
+        The disadvantage of having one object per sound is, that each one has
+        to have its volume adjusted individually.
+        '''
+        def makeSFX( path:str ) -> QSoundEffect :
+            sfx = QSoundEffect()
+            sfx.setSource(QUrl.fromLocalFile(':/'+path))
+            sfx.setVolume(0.99)
+            while not sfx.isLoaded():
+                QApplication.instance().processEvents()
+            return sfx
+        self.sfx = dict()
+        self.sfx['move'] = makeSFX( 'move.wav' )
+        self.sfx['rotate'] = makeSFX('rotate.wav')
+        self.sfx['drop'] = makeSFX('drop.wav')
+        self.sfx['line'] = makeSFX('line.wav')
+        self.sfx['settle'] = makeSFX('settle.wav')
 
         '''
         Create the game and make it the central widget.
         '''
         self.game = Game(self)
         self.setCentralWidget(self.game)
+
         '''
         Create the ToolBar and populate it with our actions. Connect
         each action's actionTriggered signal to its relevant slot.
@@ -306,9 +338,12 @@ class Tetris(QMainWindow):
         self.volume_slider.setRange(0,99)
         self.volume_slider.setTickInterval(25)
         self.volume_slider.setMaximumWidth(250)
-        self.volume_slider.setMinimumWidth(100)
+        self.volume_slider.setMinimumWidth(50)
         self.volume_slider.valueChanged.connect(self.volumeAction)
+        self.volume_slider.setValue(
+            self.settings.value("volume",50) )
         self.toolbar.addWidget(self.volume_slider)
+
 
     '''
     These slots receive clicks on toolbar icons - probably will
@@ -356,6 +391,7 @@ class Tetris(QMainWindow):
         self.settings.setValue("windowSize",self.size())
         self.settings.setValue("windowPosition",self.pos())
         self.settings.setValue("highScore",self.high_score)
+        self.settings.setValue("volume",self.volume_slider.value())
 
 
 
@@ -394,5 +430,9 @@ if __name__ == '__main__' :
 
     the_main_window = Tetris(the_settings)
     the_main_window.show()
-    the_app.exec_()
+    for (key,sound) in the_main_window.sfx.items() :
+        print(key)
+        sound.play()
+        QTest.qWait(500)
 
+    the_app.exec_()
