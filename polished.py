@@ -152,9 +152,9 @@ values of each of its cells, initialized as in T_Shapes above.
 
 A T_mo can rotate, but note that the rotate_left() and rotate_right() methods
 do NOT modify shape of the "self" T_mo. They return a NEW T_mo intended to
-replace this one. This is done so that the Board can test a rotation. If the
-new, rotated T_mo is legal, it replaces the old; but if it is not permitted,
-the original T_mo is left unchanged.
+replace this one. This is done so that the game can test a rotation. If the
+new, rotated T_mo is legal, it will replace the old; but if it it collides
+with something, the original T_mo is left unchanged.
 
 '''
 class T_mo(object):
@@ -312,27 +312,39 @@ class Tetris(QMainWindow):
         '''
         self.toolbar = QToolBar()
         self.addToolBar( self.toolbar )
-        # set up the Play icon and connect it.
+        '''
+        Set up the Play icon and connect it to playAction.
+        '''
         self.play_action = self.toolbar.addAction(
             QIcon(QPixmap(':/icon_play.png')),'Play')
         self.play_action.triggered.connect(self.playAction)
-        # set up the Pause icon and connect it.
+        '''
+        set up the Pause icon and connect it to pauseAction.
+        '''
         self.pause_action = self.toolbar.addAction(
             QIcon(QPixmap(':/icon_pause.png')),'Pause')
         self.pause_action.triggered.connect(self.pauseAction)
-        # set up the Restart icon and connect it
+        '''
+        Set up the Restart icon and connect it to resetAction.
+        '''
         self.reset_action = self.toolbar.addAction(
             QIcon(QPixmap(':/icon_reset.png')),'Reset')
         self.reset_action.triggered.connect(self.resetAction)
-        # set the game buttons to enabled or disabled states
+        '''
+        With the control buttons created, set them to enabled or disabled
+        states as appropriate.
+        '''
         self.enableButtons()
-        # Insert the Mute button and the volume slider after a separator
+        '''
+        Insert the Mute button and the volume slider after a separator.
+        Note the mute button action, unlike the other actions, is checkable,
+        it remembers its state.
+        '''
         self.toolbar.addSeparator()
         self.mute_action = self.toolbar.addAction(
             QIcon(QPixmap(':/icon_mute.png')),'Mute')
-        self.mute_action.triggered.connect(
-            lambda : self.volumeAction(0)
-            )
+        self.mute_action.setCheckable(True)
+        self.mute_action.triggered.connect(self.muteAction)
         self.volume_slider = QSlider(Qt.Horizontal)
         self.volume_slider.setTickPosition(QSlider.TicksBothSides)
         self.volume_slider.setRange(0,99)
@@ -340,14 +352,24 @@ class Tetris(QMainWindow):
         self.volume_slider.setMaximumWidth(250)
         self.volume_slider.setMinimumWidth(50)
         self.volume_slider.valueChanged.connect(self.volumeAction)
-        self.volume_slider.setValue(
-            self.settings.value("volume",50) )
+        self.volume_slider.sliderReleased.connect(self.sliderAction)
         self.toolbar.addWidget(self.volume_slider)
+        '''
+        Recover the last volume value and last mute state from the settings.
+        Call volumeAction to propogate the volume to the sfx objects.
+        '''
+        self.volume_slider.setValue(self.settings.value("volume",50))
+        self.mute_action.setChecked(self.settings.value("mutestate",False))
+        self.muted_volume = self.settings.value("mutedvol",50)
+        self.volumeAction(self.volume_slider.value())
 
 
     '''
-    These slots receive clicks on toolbar icons - probably will
-    be replaced with calls direct into game object.
+    Whenever the game state changes, enable or disable some combination of
+    the control buttons.
+    * Pause is enabled if the game is running and not paused.
+    * Play is enabled if the game is not running, or if paused.
+    * Reset is enabled if the game running.
     '''
     def enableButtons(self):
         self.pause_action.setEnabled(
@@ -356,20 +378,28 @@ class Tetris(QMainWindow):
             not(self.game.started) or self.game.paused )
         self.reset_action.setEnabled(
             self.game.started )
+
+    '''
+    Slots to receive clicks on the control buttons.
+
+    Play button: because of enableButtons, the game state is either
+    not-started, or paused.
+    '''
     def playAction(self, toggled:bool):
-        print('Play')
         if self.game.paused :
-            self.game.pause() # toggle pause to off
+            self.game.pause() # paused; toggle pause state
         else :
             self.game.start()
         self.enableButtons()
-
+    '''
+    Pause button: enableButtons ensures that Pause will only be
+    enabled if the game is running.
+    '''
     def pauseAction(self, toggled:bool):
-        print('Pause')
-        self.game.pause()
+        self.game.pause() # toggle to paused state
         self.enableButtons()
+
     def resetAction(self, toggled:bool):
-        print('Reset')
         ans = QMessageBox.question(
             self, 'Reset clicked', 'Reset the game? State will be lost.' )
         if ans == QMessageBox.Ok or ans == QMessageBox.Yes :
@@ -377,14 +407,41 @@ class Tetris(QMainWindow):
             self.game.start()
     '''
     This slot is called from the valueChanged signal of the volume slider,
-    or directly by on the triggered action of the mute button.
+    which can be the result of the user dragging the slider, or the program
+    setting the value of the slider, as in muteAction below.
+
+    Set the value on each of the QSoundEffect objects we own. Note that the
+    .setVolume() method wants a real, where the slider value is an int.
     '''
     def volumeAction(self, slider_value:int ) :
-        print('volume {}'.format(slider_value))
-
+        for sfx in self.sfx.values() :
+            sfx.setVolume( slider_value/100.0 )
     '''
-    Reimplement QWindow.closeEvent to save our geometry
-    and the current high score.
+    This action is called only when the user has dragged the volume slider
+    and released it. The volumeAction volume change signal that calls
+    volumeAction occurs separately; here we just want to release the Mute
+    button if it is checked. N.B. calling setChecked does not cause the
+    triggered signal that would invoke muteAction below.
+    '''
+    def sliderAction(self):
+        self.mute_action.setChecked(False)
+    '''
+    This slot is called when the Mute button is clicked by the user. The Mute
+    button action is checkable, and checked is the new state, on or off.
+
+    When the state is now on, save the present volume slider value and set
+    the volume to zero. When the state is now off, reset the volume slider to
+    the saved value.
+    '''
+    def muteAction(self, checked:bool):
+        if checked :
+            self.muted_volume = self.volume_slider.value()
+            self.volume_slider.setValue(0) # triggers entry to volumeAction
+        else :
+            self.volume_slider.setValue(self.muted_volume)
+    '''
+    Reimplement QWindow.closeEvent to save our geometry, the current high
+    score, and various UI values.
     '''
     def closeEvent(self, event:QEvent):
         self.settings.clear()
@@ -392,6 +449,8 @@ class Tetris(QMainWindow):
         self.settings.setValue("windowPosition",self.pos())
         self.settings.setValue("highScore",self.high_score)
         self.settings.setValue("volume",self.volume_slider.value())
+        self.settings.setValue("mutestate",self.mute_action.isChecked())
+        self.settings.setValue("mutedvol",self.muted_volume)
 
 
 
