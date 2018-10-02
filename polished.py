@@ -22,10 +22,13 @@ Board showing the next piece to come.
 
 from PyQt5.QtWidgets import (
     QFrame,
+    QHBoxLayout,
     QMainWindow,
     QMessageBox,
+    QSizePolicy,
     QSlider,
-    QToolBar
+    QToolBar,
+    QVBoxLayout
     )
 from PyQt5.QtCore import (
     Qt,
@@ -208,13 +211,243 @@ any unoccupied board cell, giving empty cells their color.
 '''
 NO_T_mo = T_mo( T_ShapeNames.N )
 
+'''
+        Board
 
+The Board object displays as an array of square cells. The number of rows and
+columns are initialization parameters. Each cell consists of a reference to a
+T_mo; the color of that T_mo is the color of the cell. Empty cells all refer
+to the global NO_T_mo, and so have a light gray color.
+
+The cells are drawn during a paint event, and the paintEvent() method and its
+subroutines are the bulk of the Board logic.
+
+The Board keeps a reference to a "current" T_mo. On the main board this is
+the T_mo that the user is controlling. During a paintEvent, the current T_mo
+is drawn separately, after the other cells.
+
+The Board also provides the test() method, which tests the four cells of the
+current T_mo against the existing cells and the Board margins. It returns one
+of three values,
+
+  * Board.OK when the cells of the current T_mo do not overlap a colored
+    cell and do not extend outside the board.
+
+  * Board.TOUCH when a cell of the current T_mo overlaps a cell that is not
+    empty. (This is tested before the following tests.)
+
+  * Board.LEFT when a cell of the current T_mo would fall outside the left
+    board margin.
+
+  * Board.RIGHT when it would fall outside the right margin.
+
+Finally the Board provides the settle() method, which merges the current T_mo
+into the cells of the board, and then looks for completed lines. If any lines
+are now complete, they are deleted from the display and empty lines are added
+at the top. The number of deleted lines is returned.
+
+In order to ensure that all board cells are drawn as squares, the aspect
+ratio of the board must be preserved during a resize event. Supposedly this
+can be done by implementing the hasHeightForWidth and heightForWidth
+methods but in fact those are never called during a resize. What does work is
+the method described here:
+
+https://stackoverflow.com/questions/8211982/qt-resizing-a-qlabel-containing-a-qpixmap-while-keeping-its-aspect-ratio
+
+which is, during a resizeEvent, to call setContentsMargins() to set new margins
+which force the resized height and width into the proper ratio.
+
+'''
+class Board(QFrame):
+    OK = 0
+    TOUCH = 1
+    LEFT = 2
+    RIGHT = 3
+    def __init__(self, parent, rows:int, columns:int):
+        super().__init__(parent)
+        self.rows = rows
+        self.cols = columns
+        self.aspect = rows/columns
+        '''
+        Set the size policy so we cannot shrink below 10px per cell, but can
+        grow. Note any growth will be preceded by a resize event, and see
+        resizeEvent() below for how that is handled to maintain square cells.
+        '''
+        self.setMinimumHeight(int(10*rows))
+        self.setMinimumWidth(int(10*columns))
+        self.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+        '''
+        The board contents is rows*columns cells, each referring to a T_mo.
+        '''
+        self.size = rows*columns
+        self.clear() # populate the board with empty cells
+        '''
+        Slots to hold info about the current piece
+        '''
+        self._current = NO_T_mo # type: T_mo
+        self._col = 0
+        self._row = 0
+
+    def clear(self):
+        self.cells = [NO_T_mo]*self.size
+        self.update( self.contentsRect() ) # force a paint event
+
+    '''
+    Place a T_mo at a certain column and row of the board.
+
+    The positions of the 4 cells of the T_mo will be painted on actual board
+    locations by adding col & row to the T_mo.coords tuple.
+
+    This method is not called unless our test() method has returned OK for
+    this T_mo at these coordinates.
+    '''
+
+    def current(self, piece:T_mo, col:int, row:int ):
+        self._current = piece
+        self._col = col
+        self._row = row
+
+    '''
+    A paint event occurs when the Qt app thinks this QFrame should be
+    updated. The event handler is responsible for drawing all the shapes in
+    the contents rectangle of this widget. The contents margins that may be
+    set during a resize event to maintain the aspect ratio, are not painted
+    here. They are painted by the containing widget.
+    '''
+
+    def paintEvent(self, event):
+        rect = self.contentsRect()
+        # Note the pixel dimensions of one cell, for use in the drawCell method.
+        # cell_width SHOULD equal cell_height always, but don't assume it.
+        self.cell_width = rect.width() // self.cols
+        self.cell_height = rect.height() // self.rows
+
+        painter = QPainter(self)
+
+        for v in range(self.rows):
+            for h in range(self.cols):
+                self.drawSquare(painter,
+                                rect.left() + h * self.cell_width,
+                                rect.top() + v * self.cell_height,
+                                self.cells[v*self.cols + h]
+                                )
+
+        if self._current is not NO_T_mo:
+            '''
+            Draw the active tetronimo at its given location.
+            '''
+            for i in range(4):
+                x = self._col + self._current.x(i)
+                y = self._row + self._current.y(i)
+                self.drawSquare(painter,
+                                rect.left() + x * self.cell_width,
+                                rect.top() + (self.rows - y - 1) * self.cell_height,
+                                self.current
+                                )
+
+    '''
+    During a paint event (above) draw one cell of the board with the color of
+    the tetronimo that is in that cell. The T_mo knows its own QColor.
+    '''
+    def drawSquare(self, painter:QPainter, x:int, y:int, shape:T_mo):
+        '''
+        First, paint a rectangle, inset 1 pixel from the cell boundary, in
+        the T_mo's color.
+        '''
+        color = shape.color()
+        painter.fillRect(x + 1,
+                         y + 1,
+                         self.cell_width - 2,
+                         self.cell_height - 2,
+                         color)
+
+        '''
+        Then, give the rectangle a "drop shadow" outline, lighter on top and
+        left sides and darker on bottom and right, using the very convenient
+        lighter/darker methods of the QColor class.
+        '''
+        painter.setPen(color.lighter())
+        painter.drawLine(x, y + self.cell_height - 1, x, y)
+        painter.drawLine(x, y, x + self.cell_width - 1, y)
+
+        painter.setPen(color.darker())
+        painter.drawLine(x + 1, y + self.cell_height - 1,
+                         x + self.cell_width - 1, y + self.cell_height - 1)
+        painter.drawLine(x + self.cell_width - 1, y + self.cell_height - 1,
+                         x + self.cell_width - 1, y + 1)
+
+    '''
+
+    A resize event occurs once, before this widget is made visible (promised
+    in the doc page for QWidget), and again whenever the user drags our
+    parent widget to a new shape.
+
+    The Board wants to maintain its aspect ratio A=self.rows/self.columns.
+    Upon a resize event, look at the new height H and width W. If H/W is not
+    equal to A, adjust the contentsMargins to restore the aspect ratio.
+    Figuring this out took me back to high school (and that's a looong trip)
+    (Oh and hey Mister Jarman if you are still alive, I forgive you for being
+    an incompetent asshole.)
+
+    Let A=rows/cols be the desired aspect ratio.
+
+    Let B=H/W, the resized ratio. Assuming B not equal A, we need to
+    find margin sizesd T (top+bottom margin) and S (side margins) such that
+
+        A = (H+T)/(W+S)
+
+    When B>A, the width is insufficient; let T=0 and find S where
+
+        A = H/(W+S)
+        1/A = (W+S)/H  ; invert both sides
+        H/A = W+S      ; multiply both sides by H
+        H/A-W = S      ; subtract W from both sides
+
+    When B<A, the height is insufficent, let S=0 and find T where
+
+        A = (H+T)/W
+        A*W = H+T      ; multiply both sides by W
+        A*W-H = T      ; subtract H from both sides
+
+    We use the QWidget.setContentsMargins(left,top,right,bottom) method.
+    '''
+    def resizeEvent(self, event):
+        H = float(self.height())
+        W = float(self.width())
+        new_aspect = H/W
+        if new_aspect > self.aspect:
+            '''
+            Resized dimensions are too narrow, need to pad the left and
+            right margins by an amount that will (approximately) restore
+            self.aspect. H/A-W = S
+            '''
+            adjust = int( H/self.aspect - W )
+            if adjust > 1:
+                # split S into approximately equal parts and add to
+                # side margins
+                add_left = adjust//2
+                add_right = adjust - add_left
+                self.setContentsMargins(add_left,0,add_right,0)
+        else :
+            '''
+            Resized dimensions are ok or too wide. Pad the top and bottom
+            margins as necessary. A*W-H = T
+            '''
+            adjust = int( self.aspect*W - H )
+            if adjust > 1:
+                # split T into approximately equal parts and add to
+                # top and bottom margins
+                add_top = adjust//2
+                add_bottom = adjust-add_top
+                self.setContentsMargins(0,add_top,0,add_bottom)
+        super().resizeEvent(event)
 
 '''
         Game frame
 
-A frame that contains the playing field, a display of the upcoming T_mo,
-and a display of the current count of lines and current score.
+A frame that contains the playing field (a Board), a display of the upcoming
+T_mo (also a Board), a display of the current count of lines and current
+score.
 
 The logic in this frame implements the rules of the game, responding
 appropriately to keystrokes and timer events to move the current piece
@@ -233,6 +466,9 @@ TODO:
 class Game(QFrame):
     def __init__(self, parent):
         super().__init__()
+        self.board = Board(self,22,10)
+        hb = QHBoxLayout()
+        hb.addWidget(self.board)
         self.clear()
 
     def start(self):
@@ -246,6 +482,7 @@ class Game(QFrame):
 
     def clear(self):
         print('cleared')
+        self.board.clear()
         self.started = False
         self.paused = False
         self.ended = True
