@@ -263,11 +263,21 @@ class Board(QFrame):
     TOUCH = 1
     LEFT = 2
     RIGHT = 3
+    board_style = '''
+    Board{{
+        border: 2px solid gray;
+        padding-top: {}px ;
+        padding-right: {}px ;
+        padding-bottom: {}px ;
+        padding-left: {}px ;
+        }}
+    '''
     def __init__(self, parent, rows:int, columns:int):
         super().__init__(parent)
         self.rows = rows
         self.cols = columns
         self.aspect = rows/columns
+        self.setStyleSheet( Board.board_style.format(0,0,0,0) )
         '''
         Set the size policy so we cannot shrink below 10px per cell, but can
         grow. Note any growth will be preceded by a resize event, and see
@@ -275,7 +285,8 @@ class Board(QFrame):
         '''
         self.setMinimumHeight(int(10*rows))
         self.setMinimumWidth(int(10*columns))
-        self.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+        sp = QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+        self.setSizePolicy(sp)
         '''
         The board contents is rows*columns cells, each referring to a T_mo.
         '''
@@ -326,7 +337,7 @@ class Board(QFrame):
 
         for v in range(self.rows):
             for h in range(self.cols):
-                self.drawSquare(painter,
+                self.drawCell(painter,
                                 rect.left() + h * self.cell_width,
                                 rect.top() + v * self.cell_height,
                                 self.cells[v*self.cols + h]
@@ -339,7 +350,7 @@ class Board(QFrame):
             for i in range(4):
                 x = self._col + self._current.x(i)
                 y = self._row + self._current.y(i)
-                self.drawSquare(painter,
+                self.drawCell(painter,
                                 rect.left() + x * self.cell_width,
                                 rect.top() + (self.rows - y - 1) * self.cell_height,
                                 self.current
@@ -349,7 +360,7 @@ class Board(QFrame):
     During a paint event (above) draw one cell of the board with the color of
     the tetronimo that is in that cell. The T_mo knows its own QColor.
     '''
-    def drawSquare(self, painter:QPainter, x:int, y:int, shape:T_mo):
+    def drawCell(self, painter:QPainter, x:int, y:int, shape:T_mo):
         '''
         First, paint a rectangle, inset 1 pixel from the cell boundary, in
         the T_mo's color.
@@ -384,62 +395,67 @@ class Board(QFrame):
 
     The Board wants to maintain its aspect ratio A=self.rows/self.columns.
     Upon a resize event, look at the new height H and width W. If H/W is not
-    equal to A, adjust the contentsMargins to restore the aspect ratio.
-    Figuring this out took me back to high school (and that's a looong trip)
-    (Oh and hey Mister Jarman if you are still alive, I forgive you for being
-    an incompetent asshole.)
+    equal to A, adjust the style padding to restore the aspect ratio.
 
-    Let A=rows/cols be the desired aspect ratio.
+    Let A=rows/cols be the desired aspect ratio (A=2.2 for the main board).
+    Let B=H/W, the resized ratio.
 
-    Let B=H/W, the resized ratio. Assuming B not equal A, we need to
-    find margin sizesd T (top+bottom margin) and S (side margins) such that
+    Suppose B<A, indicating that the width is greater than desired. (Actually
+    the height has been reduced.) We want to effectively reduce the width by
+    padding, to force the cell array back to about the A aspect ratio (at the
+    cost of shrinking the array in the frame).
 
-        A = (H+T)/(W+S)
+        A = H/W-S
+        A/H = 1/W-S
+        H/A = W-S
+        H/A-W = S
 
-    When B>A, the width is insufficient; let T=0 and find S where
+    Set the left and right padding to S pixels, equally divided.
 
-        A = H/(W+S)
-        1/A = (W+S)/H  ; invert both sides
-        H/A = W+S      ; multiply both sides by H
-        H/A-W = S      ; subtract W from both sides
+    Suppose B>A, indicating the width is too narrow, or the height is too much.
+    Reduce the height by padding with T pixels:
 
-    When B<A, the height is insufficent, let S=0 and find T where
+        A = H-T/W
+        WA = H-T
+        WA-H = T
 
-        A = (H+T)/W
-        A*W = H+T      ; multiply both sides by W
-        A*W-H = T      ; subtract H from both sides
-
-    We use the QWidget.setContentsMargins(left,top,right,bottom) method.
+    Set the top and bottom padding to T pixels, equally divided.
     '''
     def resizeEvent(self, event):
         H = float(self.height())
         W = float(self.width())
         new_aspect = H/W
-        if new_aspect > self.aspect:
+        #print('resize, new aspect {} desired {}'.format(new_aspect,self.aspect))
+        if new_aspect < self.aspect:
             '''
-            Resized dimensions are too narrow, need to pad the left and
-            right margins by an amount that will (approximately) restore
-            self.aspect. H/A-W = S
+            Resized dimensions are too narrow, need to pad the sides.
+            H/A-W = S
             '''
-            adjust = int( H/self.aspect - W )
+            adjust = abs(int( H/self.aspect - W ))
             if adjust > 1:
                 # split S into approximately equal parts and add to
                 # side margins
                 add_left = adjust//2
                 add_right = adjust - add_left
-                self.setContentsMargins(add_left,0,add_right,0)
+                #print('new left/right {}/{}'.format(add_left,add_right))
+                self.setStyleSheet(
+                    Board.board_style.format(0,add_right,0,add_left)
+                    )
         else :
             '''
-            Resized dimensions are ok or too wide. Pad the top and bottom
+            Resized dimensions are ok or too tall. Pad the top and bottom
             margins as necessary. A*W-H = T
             '''
-            adjust = int( self.aspect*W - H )
+            adjust = abs(int( self.aspect*W - H ))
             if adjust > 1:
                 # split T into approximately equal parts and add to
                 # top and bottom margins
                 add_top = adjust//2
                 add_bottom = adjust-add_top
-                self.setContentsMargins(0,add_top,0,add_bottom)
+                #print('new top/bottom {}/{}'.format(add_top,add_bottom))
+                self.setStyleSheet(
+                    Board.board_style.format(add_top,0,add_bottom,0)
+                    )
         super().resizeEvent(event)
 
 '''
@@ -468,7 +484,8 @@ class Game(QFrame):
         super().__init__()
         self.board = Board(self,22,10)
         hb = QHBoxLayout()
-        hb.addWidget(self.board)
+        hb.addWidget(self.board,2)
+        self.setLayout(hb)
         self.clear()
 
     def start(self):
