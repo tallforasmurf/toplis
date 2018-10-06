@@ -719,6 +719,17 @@ currently this is basically unit test
 '''
 
 if __name__ == '__main__' :
+    '''
+    Initialize the random seed from the command line if there is an
+    argument and it is convertable to int. Otherwise don't.
+    '''
+    try :
+        random.seed( int( sys.argv[1] ) )
+    except : # whatever...
+        random.seed()
+    '''
+    Initialize the QT app including special handling for Linux
+    '''
     from PyQt5.QtWidgets import QApplication
     import sys
     args = []
@@ -740,9 +751,15 @@ if __name__ == '__main__' :
     '''
     from PyQt5.QtCore import QSettings
     the_settings = QSettings()
-
+    '''
+    Create the main window (which creates everything else), passing
+    the settings object for use starting up and shutting down.
+    Then display it and begin execution.
+    '''
     the_main_window = Tetris(the_settings)
     the_main_window.show()
+
+    # Unit test
     for (key,sound) in the_main_window.sfx.items() :
         print(key)
         sound.play()
