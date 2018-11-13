@@ -112,40 +112,51 @@ As I interpret that, if the columns are numbered 0-9, the O spawns in columns
 wide when horizontal) spawn in columns 3, 4, 5.
 
 The following design is due to Jan Bodnar (see URL in standard.py). Each
-Tetronimo is described by a list of four (x,y) tuples that specify four cells
-centered in an x-y coordinate plane. The initial values specify the initial
-(spawn) rotation of a Tetronimo, where (x=0,y=0) corresponds to column 4 row
-20.
+Tetronimo is described by a list of four (col,row) tuples that specify four
+cells at the center of a coordinate plane. The initial values specify the
+initial (spawn) rotation of a Tetronimo, where (col:0,row:0) will be spawned
+into row 1 (second-topmost), column 4 of the board.
 
 For example the Z is:
-                (-1,1)(0,1)
-                      (0,0) (1,0)
+                (-1,-1)(0,-1)
+                       (0,0) (1,0)
 while the L is:
-                            (1,1)
+                            (1,-1)
                 (-1,0)(0,0) (1,0)
 
 This design has the very nice property that rotation is easy. To rotate a
 shape left, replace the tuples of the original shape with the tuple
 comprehension,
 
-    ( (-y,x) for (x,y) in original_shape )
+    ( (r,-c) for (c,r) in original_shape )
 
-To rotate a shape right, use ( (y,-x) for (x,y) in original_shape )
+That is, reverse the meaning of the row and column values, negating the
+column number. For example if L is (c,r) in
 
-For example if L is ((1,1), (-1,0),(0,0),(1,0))
-L rotated left is   ((-1,1),(0,-1),(0,0),(0,1))
-L rotated right is  ((1,-1),(0,-1),(0,0),(0,1))
+                          (1,-1)
+                (-1,0)(0,0)(1,0)
+
+then taking ((r,-c) for (c,r)) is
+             (-1,-1) (0,-1)
+                     (0,0)
+                     (0,1)
+
+To rotate a shape right, use ((-r,c) for (c,r) in original_shape),
+which applied to original L gives
+              (0,-1)
+              (0,0)
+              (0,1) (1,1)
 
 '''
 T_Shapes = {
     T_ShapeNames.N : ((0,0),(0,0),(0,0),(0,0)),
-    T_ShapeNames.O : ((0,1),(1,1),(0,0),(1,0)),
+    T_ShapeNames.O : ((0,0),(1,0),(0,1),(1,1)),
     T_ShapeNames.I : ((-2,0),(-1,0),(0,0),(1,0)),
-    T_ShapeNames.T : ((0,1),(-1,0),(0,0),(1,0)),
-    T_ShapeNames.L : ((1,1),(-1,0),(0,0),(1,0)),
-    T_ShapeNames.J : ((-1,1),(-1,0),(0,0),(1,0)),
-    T_ShapeNames.S : ((-1,0),(0,0),(0,1),(1,1)),
-    T_ShapeNames.Z : ((-1,1),(0,1),(0,0),(1,0))
+    T_ShapeNames.T : ((0,-1),(-1,0),(0,0),(1,0)),
+    T_ShapeNames.L : ((1,-1),(-1,0),(0,0),(1,0)),
+    T_ShapeNames.J : ((-1,-1),(-1,0),(0,0),(1,0)),
+    T_ShapeNames.S : ((1,-1),(0,-1),(0,0),(-1,0)),
+    T_ShapeNames.Z : ((-1,-1),(0,-1),(0,0),(1,0))
     }
 
 '''
@@ -157,38 +168,38 @@ A T_mo can rotate, but note that the rotate_left() and rotate_right() methods
 do NOT modify shape of the "self" T_mo. They return a NEW T_mo intended to
 replace this one. This is done so that the game can test a rotation. If the
 new, rotated T_mo is legal, it will replace the old; but if it it collides
-with something, the original T_mo is left unchanged.
+with something, the original T_mo can be left unchanged.
 
 '''
 class T_mo(object):
     def __init__(self, t_name: T_ShapeNames) :
         self.t_name = t_name
         self.t_color = T_Colors[t_name]
-        self.coords = tuple( ((x,y) for (x,y) in T_Shapes[t_name]) )
+        self.coords = tuple( ((c,r) for (c,r) in T_Shapes[t_name]) )
 
     def color(self) -> QColor :
         return self.t_color
 
     '''
-    Return the x and y values of one of the four cells of this T_mo
+    Return the r and c values of one of the four cells of this T_mo
     '''
-    def x(self, cell:int ) -> int :
+    def c(self, cell:int ) -> int :
         return self.coords[cell][0]
-    def y(self, cell:int ) -> int :
+    def r(self, cell:int ) -> int :
         return self.coords[cell][1]
 
     '''
-    Return the minimum and maximum x and y values of this T_mo. These are
+    Return the minimum and maximum r and c values of this T_mo. These are
     used to compute collisions.
     '''
-    def x_max(self) -> int :
-        return max( (x for (x,y) in self.coords) )
-    def x_min(self) -> int :
-        return min( (x for (x,y) in self.coords) )
-    def y_max(self) -> int :
-        return max( (y for (x,y) in self.coords) )
-    def y_min(self) -> int :
-        return min( (y for (x,y) in self.coords) )
+    def r_max(self) -> int :
+        return max( (r for (c,r) in self.coords) )
+    def r_min(self) -> int :
+        return min( (r for (c,r) in self.coords) )
+    def c_max(self) -> int :
+        return max( (c for (c,r) in self.coords) )
+    def c_min(self) -> int :
+        return min( (c for (c,r) in self.coords) )
 
     '''
     Return a new T_mo with its shape rotated either left or right. Note that
@@ -198,11 +209,11 @@ class T_mo(object):
     '''
     def rotateLeft(self) :
         new_tmo = T_mo( self.t_name )
-        new_tmo.coords = tuple( ((-y,x) for (x,y) in self.coords ) )
+        new_tmo.coords = tuple( ((r,-c) for (c,r) in self.coords ) )
         return new_tmo
     def rotateRight(self) :
         new_tmo = T_mo( self.t_name )
-        new_tmo.coords = tuple( ( (y,-x) for (x,y) in self.coords ) )
+        new_tmo.coords = tuple( ((-r,c) for (c,r) in self.coords ) )
         return new_tmo
 
 '''
@@ -226,14 +237,25 @@ The Board keeps a reference to a "current" T_mo. On the main board this is
 the T_mo that the user is controlling. During a paintEvent, the current T_mo
 is drawn separately, after the other cells.
 
-The Board also provides the test() method, which tests the four cells of the
-current T_mo against the existing cells and the Board margins. It returns one
-of three values,
+Board location is by row and column. Columns are numbered from 0 to
+self.cols, increasing numbers moving left to right. Rows are numbered from 0
+to self.rows, increasing numbers moving from 0 at the top toward the bottom.
+Some confusion arises (in me!) from trying to use "x" and "y", so all access
+to coordinates are in terms of "row" and "col" (or r/c).
 
-  * Board.OK when the cells of the current T_mo do not overlap a colored
-    cell and do not extend outside the board.
+The location of the center cell of the current T_mo is returned by
+currentColumn() and currentRow(). (The center cell is the one with value
+(0,0) in the T_Shapes table.)
 
-  * Board.TOUCH when a cell of the current T_mo overlaps a cell that is not
+The Board also provides the testAndPlace() method, which tests the four cells
+of a proposed T_mo against the existing cells and the Board margins. It
+returns one of three values,
+
+  * Board.OK when the cells of the T_mo do not overlap a colored cell and do
+    not extend outside the board. The given T_mo is recorded as the current
+    piece, replacing it.
+
+  * Board.TOUCH when a cell of the T_mo overlaps a cell that is not
     empty. (This is tested before the following tests.)
 
   * Board.LEFT when a cell of the current T_mo would fall outside the left
@@ -241,10 +263,9 @@ of three values,
 
   * Board.RIGHT when it would fall outside the right margin.
 
-Finally the Board provides the settle() method, which merges the current T_mo
-into the cells of the board, and then looks for completed lines. If any lines
-are now complete, they are deleted from the display and empty lines are added
-at the top. The number of deleted lines is returned.
+Finally the Board provides the place() method, which merges the current T_mo
+into the cells of the board, and the winnow() method that looks for and
+removes completed lines. The number of removed lines is returned.
 
 In order to ensure that all board cells are drawn as squares, the aspect
 ratio of the board must be preserved during a resize event. Supposedly this
@@ -254,8 +275,10 @@ the method described here:
 
 https://stackoverflow.com/questions/8211982/qt-resizing-a-qlabel-containing-a-qpixmap-while-keeping-its-aspect-ratio
 
-which is, during a resizeEvent, to call setContentsMargins() to set new margins
-which force the resized height and width into the proper ratio.
+which is, during a resizeEvent, to call setContentsMargins() to set new
+margins which force the resized height and width into the proper ratio. In
+this case rather than setting contents margins directly, we use the Widget
+CSS styling to set the padding of the board. Same idea.
 
 '''
 class Board(QFrame):
@@ -291,6 +314,7 @@ class Board(QFrame):
         The board contents is rows*columns cells, each referring to a T_mo.
         '''
         self.size = rows*columns
+        self.cells = [] # type: List[T_mo]
         self.clear() # populate the board with empty cells
         '''
         Slots to hold info about the current piece
@@ -300,23 +324,118 @@ class Board(QFrame):
         self._row = 0
 
     def clear(self):
+        self._current = NO_T_mo
+        self._col = 0
+        self._row = 0
         self.cells = [NO_T_mo]*self.size
         self.update( self.contentsRect() ) # force a paint event
 
     '''
-    Place a T_mo at a certain column and row of the board.
+    Return the current piece or its location
+    '''
+    def currentPiece(self) -> T_mo:
+        return self._current
+    def currentColumn(self) -> int:
+        return self._col
+    def currentRow(self) -> int:
+        return self._row
 
-    The positions of the 4 cells of the T_mo will be painted on actual board
-    locations by adding col & row to the T_mo.coords tuple.
+    def shapeInCell(self,row:int,col:int) -> T_mo:
+        '''
+        Return the T_mo in our array at row x, column y
+        '''
+        return self.cells[row*self.cols + col]
 
-    This method is not called unless our test() method has returned OK for
-    this T_mo at these coordinates.
+    def setCell(self, col:int, row:int, shape:T_mo) :
+        '''
+        Set the specified cell at row x, column y, to contain
+        the given T_mo.
+        '''
+        self.cells[row*self.cols + col] = shape
+
+    '''
+    Test a tetronimo in a new position or orientation. This method is
+    called when a new piece is first created, and when the active piece
+    is rotated or translated.
+
+    If there exists another tetronimo already in a cell that the new position
+    would occupy, the change is not allowed and we return Board.TOUCH. If the
+    T_mo would go outside a wall, we return Board.LEFT or Board.RIGHT. In
+    these cases, no change is made to the board and the caller has to decide
+    what to do.
+
+    If the changed tetronimo covers only empty cells, the move is completed
+    by saving the T_mo and its coordinates as the current piece, to be
+    returned by currentPiece()/currentColumn()/currentRow().
+
+    After accepting a change we call QWidget.repaint(), to force a call to
+    paintEvent() so that the piece is seen to descend.
     '''
 
-    def current(self, piece:T_mo, col:int, row:int ):
-        self._current = piece
-        self._col = col
-        self._row = row
+    def testAndPlace(self, newPiece, new_row, new_col) ->int :
+        #print('tp at r{} c{}'.format(new_row,new_col), end='')
+        for i in range(4):
+            r = new_row + newPiece.r(i)
+            c = new_col + newPiece.c(i)
+            if c < 0 :
+                #print(' left')
+                return Board.LEFT
+            elif c >= self.cols:
+                #print(' right')
+                return Board.RIGHT
+            elif r < 0 \
+            or r >= self.rows \
+            or self.shapeInCell(r,c) is not NO_T_mo:
+                #print(' touch')
+                return Board.TOUCH
+
+        # It fits, place it
+        self._current = newPiece
+        self._row = new_row
+        self._col = new_col
+        self.repaint()
+        #print(' ok')
+        return Board.OK
+
+    def place(self):
+        '''
+        The current T_mo has reached its final resting place. Install it into the
+        board cells so they will show its color and no longer appear empty to
+        testAndPlace().
+        '''
+        for (c,r) in self._current.coords:
+            self.setCell(c+self._col, r+self._row, self._current)
+
+    def winnow(self) -> int :
+        '''
+        After place() has been called, this method is called to find out if
+        any rows have been completely filled, and eliminate them. As many as
+        four rows might have been filled (by a well-placed I piece). Filled
+        rows need not be contiguous.
+        '''
+        full_rows = []
+        for row in range(0, len(self.cells), self.cols) :
+            if NO_T_mo in self.cells[row:row+self.cols] :
+                continue
+            full_rows.append(row)
+
+        if full_rows:
+            '''
+            Rows whose starting index is in full_rows are deleted from the
+            cells list. Do this from last (higher index) to first (lower index)
+            so as not to invalidate the index of undeleted rows.
+            '''
+            for row in reversed(full_rows):
+                del self.cells[row:row+self.cols]
+            '''
+            Install an equal number of blank rows at the top.
+            '''
+            new_rows = [NO_T_mo]*(len(full_rows)*self.cols)
+            self.cells = new_rows + self.cells
+            self.update( self.contentsRect() ) # force a paint event
+            self.repaint()
+
+        return len(full_rows)
 
     '''
     A paint event occurs when the Qt app thinks this QFrame should be
@@ -340,7 +459,7 @@ class Board(QFrame):
                 self.drawCell(painter,
                                 rect.left() + h * self.cell_width,
                                 rect.top() + v * self.cell_height,
-                                self.cells[v*self.cols + h]
+                                self.shapeInCell(v, h)
                                 )
 
         if self._current is not NO_T_mo:
@@ -348,12 +467,12 @@ class Board(QFrame):
             Draw the active tetronimo at its given location.
             '''
             for i in range(4):
-                x = self._col + self._current.x(i)
-                y = self._row + self._current.y(i)
+                c = self._col + self._current.c(i)
+                r = self._row + self._current.r(i)
                 self.drawCell(painter,
-                                rect.left() + x * self.cell_width,
-                                rect.top() + (self.rows - y - 1) * self.cell_height,
-                                self.current
+                                rect.left() + c * self.cell_width,
+                                rect.top() + r * self.cell_height,
+                                self._current
                                 )
 
     '''
@@ -480,29 +599,351 @@ TODO:
 '''
 
 class Game(QFrame):
-    def __init__(self, parent):
+    '''
+    Initial game-step-time in milliseconds.
+    '''
+    StartingSpeed = 750
+    '''
+    Lines to a time change
+    '''
+    LinesPerStepChange = 20
+    '''
+    Time reduction factor: game step time is multipled by this
+    after every LinesPerStepChange lines have been cleared.
+    '''
+    TimeFactor = 0.75
+
+    def __init__(self, parent, high_score, sfx_dict):
         super().__init__()
+        '''
+        Save the previous high score and a reference to the
+        dict of QSoundEffects provided by the main window.
+        '''
+        self.high_score = high_score
+        self.sfx = sfx_dict
+        '''
+        Get all keystrokes in this widget.
+        '''
+        self.setFocusPolicy(Qt.StrongFocus)
+        '''
+        Create the timer that sets the pace of the game.
+        Create the timer interval, initially StartingSpeed.
+        Create the count of lines cleared.
+        '''
+        self.timer = QBasicTimer()
+        self.linesCleared = 0
+        self.timeStep = Game.StartingSpeed
+        '''
+        Create the flag that is set True after clearing any complete lines,
+        so that the next piece is not created until the timer expires.
+        '''
+        self.waitForNextTimer = False
+        '''
+        Create state flags. self.start() is called by the main window.
+        isPaused flag is toggled in self.pause() by a P keystroke.
+        isOver means, need to clear the board of previous game.
+        '''
+        self.isStarted = False
+        self.isPaused = False
+        self.isOver = False
+        '''
+        Create the "bag" of upcoming T-mos.
+        '''
+        self.bag_of_pieces = [] # Type: typing.List[T_mo]
+
+        '''
+        Create sets of accepted keys, for quick reference during a
+        keyPressEvent. The names of keys and modifier codes are defined in
+        the Qt namespace, see http://doc.qt.io/qt-5/qt.html#Key-enum
+
+        For speed of recognition we take the modifier value and OR it with
+        the key code. The keys to be recognized are those listed in "4.1
+        Table of Basic Controls" in the Tetris guidelines. The frozenset
+        constructor requires an iterator as its argument; we give it a tuple,
+        hence lots of parens.
+
+        Note: on the macbook (at least) the arrow keys have the keypad bit
+        set. Don't know about other platforms.
+        '''
+        self.Keys_left = frozenset((
+            int(Qt.Key_Left),
+            int(Qt.KeypadModifier)|int(Qt.Key_Left),
+            int(Qt.KeypadModifier)|int(Qt.Key_4)
+            ))
+        self.Keys_right = frozenset((
+            int(Qt.Key_Right),
+            int(Qt.KeypadModifier)|int(Qt.Key_Right),
+            int(Qt.KeypadModifier)|int(Qt.Key_6)
+            ))
+        self.Keys_hard_drop = frozenset((
+            int(Qt.Key_Space),
+            int(Qt.KeypadModifier)|int(Qt.Key_8)
+            ))
+        self.Keys_soft_drop = frozenset((
+            int(Qt.Key_D),
+            int(Qt.KeypadModifier)|int(Qt.Key_2)
+            ))
+        self.Keys_clockwise = frozenset((
+            int(Qt.Key_Up),
+            int(Qt.KeypadModifier)|int(Qt.Key_Up),
+            int(Qt.Key_X),
+            int(Qt.KeypadModifier)|int(Qt.Key_1),
+            int(Qt.KeypadModifier)|int(Qt.Key_5),
+            int(Qt.KeypadModifier)|int(Qt.Key_9)
+            ))
+        self.Keys_widdershins = frozenset((
+            int(Qt.Key_Control),
+            int(Qt.Key_Z),
+            int(Qt.KeypadModifier)|int(Qt.Key_3),
+            int(Qt.KeypadModifier)|int(Qt.Key_7)
+            ))
+        self.Keys_hold = frozenset((
+            int(Qt.Key_Shift),
+            int(Qt.Key_C),
+            int(Qt.KeypadModifier)|int(Qt.Key_0)
+            ))
+        self.Keys_pause = frozenset((
+            int(Qt.Key_P),
+            int(Qt.Key_Escape),
+            int(Qt.Key_F1)
+            ))
+
+        self.validKeys = frozenset(
+            self.Keys_left | self.Keys_right | self.Keys_hard_drop | \
+            self.Keys_soft_drop | self.Keys_clockwise | \
+            self.Keys_widdershins | self.Keys_hold | self.Keys_pause
+            )
+        '''
+        Create the playing board and lay it out.
+        TODO: create preview board and score display.
+        '''
         self.board = Board(self,22,10)
         hb = QHBoxLayout()
         hb.addWidget(self.board,2)
         self.setLayout(hb)
+        '''
+        Initialize all the above.
+        '''
         self.clear()
 
-    def start(self):
-        self.started = True
-        self.ended = False
-        print('started')
-
-    def pause(self):
-        self.paused = not self.paused
-        print('paused {}'.format(self.paused))
+    def make_bag(self) -> typing.List[T_mo] :
+        '''
+        Create a "bag" of seven Tetronimos in random order. They will be
+        consumed before another bag is requested. This prevents the
+        frustrations of a naive randomizer, where you can get many quick
+        repeats or many long droughts. With the bag system you never get more
+        than two identical pieces in a row, or go longer than 12 before
+        getting another of the same type.
+        '''
+        bag = [ T_mo(T_ShapeNames(v)) for v in range(1,7) ]
+        random.shuffle(bag)
+        return bag
 
     def clear(self):
-        print('cleared')
+        self.timer.stop()
         self.board.clear()
-        self.started = False
-        self.paused = False
-        self.ended = True
+        self.isStarted = False
+        self.isPaused = False
+        self.isOver = False
+        self.timeStep = Game.StartingSpeed
+        self.linesCleared = 0
+        self.bag_of_pieces = self.make_bag()
+        self.update( self.contentsRect() ) # force a paint event
+
+
+    def start(self):
+        '''
+        Begin or resume play. If the board has a current piece, we are
+        resuming after a pause. Otherwise we need to start a piece.
+        '''
+        if self.isOver :
+            self.clear()
+        self.isStarted = True
+        self.timer.start( self.timeStep, self )
+        if self.board.currentPiece() is NO_T_mo :
+            self.newPiece()
+
+    def pause(self):
+        '''
+        The Pause icon has been clicked (in which case isPaused is False,
+        because that icon is grayed out while paused) or the P key has
+        been pressed to toggle pausing (in which case isPaused could be true).
+        '''
+        self.isPaused = not self.isPaused
+        if self.isPaused :
+            # stop the timer
+            self.timer.stop()
+        else :
+            # P key wants to restart the game
+            self.start()
+
+    def game_over(self):
+        #print('game over')
+        self.timer.stop()
+        self.isStarted = False
+        self.isOver = True
+        # TODO: make appropriate sound
+
+    def newPiece(self):
+        '''
+        Take the next piece from the bag, refilling the bag if necessary, and
+        put it on the board at the middle column and row 1 (second from top).
+        If it won't fit, the game is over.
+
+        TODO: preview
+        '''
+        #print('new piece')
+        if 0 == len(self.bag_of_pieces):
+            self.bag_of_pieces = self.make_bag()
+        if self.board.testAndPlace(
+            self.bag_of_pieces.pop(),
+            1,
+            self.board.cols//2) == Board.OK :
+            return
+        self.game_over()
+
+    def timerEvent(self, event:QEvent):
+        '''
+        A timer has expired. Normally this means it is time to move the
+        current piece down one line, if possible.
+
+        If we are waiting after clearing whole lines, the wait is over and it
+        is time to start a new tetronimo. In that case, we need to re-set the
+        timer interval, as it may have been changed while clearing lines.
+        '''
+        event.accept()
+        #print('timer')
+        if not self.waitForNextTimer:
+            self.oneLineDown()
+        else:
+            self.waitForNextTimer = False
+            self.timer.stop()
+            self.timer.start( self.timeStep, self )
+            self.newPiece()
+
+    def keyPressEvent(self, event:QEvent):
+        '''
+        Process a key press. Any key press (not release) while the focus is
+        in the board comes here. The key code is event.key() If the key is in
+        self.validKeys, we can handle the event. Otherwise pass it to our
+        parent.
+        '''
+        if self.isStarted and self.board.currentPiece() is not NO_T_mo :
+            key = int(event.key()) | int(event.modifiers())
+            if key in self.validKeys :
+                event.accept() # Tell Qt, we got this one
+                if key in self.Keys_left:
+                    self.moveSideways(toleft=True)
+                elif key in self.Keys_right:
+                    self.moveSideways(toleft=False)
+                elif key in self.Keys_hard_drop:
+                    self.dropDown()
+                elif key in self.Keys_soft_drop:
+                    self.oneLineDown()
+                elif key in self.Keys_clockwise:
+                    self.rotatePiece(toleft=False)
+                elif key in self.Keys_widdershins:
+                    self.rotatePiece(toleft=True)
+                elif key in self.Keys_hold:
+                    pass # TODO WHAT IS HOLD AND HOW TO DO IT
+                elif key in self.Keys_pause:
+                    self.pause()
+        if not event.isAccepted():
+            '''either we are paused or not one of our keys'''
+            super().keyPressEvent(event)
+
+    def oneLineDown(self):
+        '''
+        Move the active T_mo down one line, either because the timer expired
+        or a soft-drop key was pressed. If successful, return True.
+
+        If it can't be moved down, place it into the board and return False.
+
+        Note we don't expect to get Board.LEFT/RIGHT returns when
+        moving down.
+        '''
+        if self.board.testAndPlace(
+            self.board.currentPiece(),
+            self.board.currentRow() + 1,
+            self.board.currentColumn()) == Board.OK:
+            # translated T_mo is happy where it is, current piece
+            # has been updated to new position.
+            # TODO: make move noise
+            return True
+        '''
+        Cannot move this piece down, so it has reached its final position,
+        so make it a permanent part of the board.
+        '''
+        self.board.place()
+        self.waitForNextTimer = True
+        '''
+        That may have filled one or more rows. Count the lines cleared
+        and adjust the timer interval based on how many lines have been cleared.
+        '''
+        n = self.board.winnow()
+        if n :
+            # TODO make clearing noise
+            self.linesCleared += n
+            line_units = 1 + self.linesCleared // Game.LinesPerStepChange
+            self.timeStep = max(20,
+                int( Game.StartingSpeed * ( Game.TimeFactor ** line_units))
+                )
+        return False
+
+    def dropDown(self):
+        '''
+        The user wants to slam the current piece to the bottom. Move it
+        down repeatedly until it hits bottom.
+        '''
+        while self.oneLineDown() : pass
+
+    def moveSideways(self, toleft:bool) :
+        '''
+        The user has hit a key to move the current piece left or right
+        '''
+        X = self.board.currentColumn()-1 if toleft else self.board.currentColumn()+1
+        if self.board.testAndPlace(
+            self.board.currentPiece(),
+            self.board.currentRow(),
+            X) == Board.OK :
+            # TODO: make move noise
+            return True
+        # TODO: make bonk noise
+        return False
+
+    def rotatePiece(self, toleft:bool ) :
+        '''
+        The user has hit a key to rotate the current piece.
+        '''
+        new_piece = self.board.currentPiece().rotateLeft() if toleft else \
+                    self.board.currentPiece().rotateRight()
+        result = self.board.testAndPlace(
+            new_piece,
+            self.board.currentRow(),
+            self.board.currentColumn())
+        if result == Board.LEFT :
+            # rotated piece overlaps left edge of board
+            # try kicking it one place right
+            result = self.board.testAndPlace(
+                new_piece,
+                self.board.currentRow(),
+                self.board.currentColumn()+1 )
+        elif result == Board.RIGHT :
+            # rotated piece overlaps right edge of board,
+            # try kicking it one place left
+            result = self.board.testAndPlace(
+                new_piece,
+                self.board.currentRow(),
+                self.board.currentColumn()-1 )
+        # if the result (now) is OK, make rotate noise and return
+        if result == Board.OK :
+            # TODO: make rotate noise
+            return True
+        else :
+            # TODO: make bonk noise
+            return False
+
+
 
 '''
         Main Window
@@ -556,10 +997,11 @@ class Tetris(QMainWindow):
 
         '''
         Create the game and make it the central widget.
+        Make keyboard focus go to it.
         '''
-        self.game = Game(self)
+        self.game = Game(self, self.high_score, self.sfx)
         self.setCentralWidget(self.game)
-
+        self.setFocusProxy(self.game)
         '''
         Create the ToolBar and populate it with our actions. Connect
         each action's actionTriggered signal to its relevant slot.
@@ -623,24 +1065,24 @@ class Tetris(QMainWindow):
     the control buttons.
     * Pause is enabled if the game is running and not paused.
     * Play is enabled if the game is not running, or if paused.
-    * Reset is enabled if the game running.
+    * Reset is enabled if the game is running.
     '''
     def enableButtons(self):
         self.pause_action.setEnabled(
-            self.game.started and not self.game.paused )
+            self.game.isStarted and not self.game.isPaused )
         self.play_action.setEnabled(
-            not(self.game.started) or self.game.paused )
+            not(self.game.isStarted) or self.game.isPaused )
         self.reset_action.setEnabled(
-            self.game.started )
+            self.game.isStarted )
 
     '''
     Slots to receive clicks on the control buttons.
 
-    Play button: because of enableButtons, the game state is either
-    not-started, or paused.
+    Play button: because of enableButtons, this is only entered when the game
+    state is either not-started, or paused.
     '''
     def playAction(self, toggled:bool):
-        if self.game.paused :
+        if self.game.isPaused :
             self.game.pause() # paused; toggle pause state
         else :
             self.game.start()
@@ -760,9 +1202,9 @@ if __name__ == '__main__' :
     the_main_window.show()
 
     # Unit test
-    for (key,sound) in the_main_window.sfx.items() :
-        print(key)
-        sound.play()
-        QTest.qWait(500)
+    #for (key,sound) in the_main_window.sfx.items() :
+        #print(key)
+        #sound.play()
+        #QTest.qWait(500)
 
     the_app.exec_()
