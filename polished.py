@@ -432,8 +432,8 @@ class Board(QFrame):
             '''
             new_rows = [NO_T_mo]*(len(full_rows)*self.cols)
             self.cells = new_rows + self.cells
-            self.update( self.contentsRect() ) # force a paint event
-            self.repaint()
+            #self.update( self.contentsRect() ) # force a paint event
+            #self.repaint()
 
         return len(full_rows)
 
