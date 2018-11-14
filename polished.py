@@ -372,11 +372,11 @@ class Board(QFrame):
     paintEvent() so that the piece is seen to descend.
     '''
 
-    def testAndPlace(self, newPiece, new_row, new_col) ->int :
+    def testAndPlace(self, new_piece, new_row, new_col) ->int :
         #print('tp at r{} c{}'.format(new_row,new_col), end='')
         for i in range(4):
-            r = new_row + newPiece.r(i)
-            c = new_col + newPiece.c(i)
+            r = new_row + new_piece.r(i)
+            c = new_col + new_piece.c(i)
             if c < 0 :
                 #print(' left')
                 return Board.LEFT
@@ -385,12 +385,12 @@ class Board(QFrame):
                 return Board.RIGHT
             elif r < 0 \
             or r >= self.rows \
-            or self.shapeInCell(r,c) is not NO_T_mo:
+            or self.shapeInCell(row=r,col=c) is not NO_T_mo:
                 #print(' touch')
                 return Board.TOUCH
 
         # It fits, place it
-        self._current = newPiece
+        self._current = new_piece
         self._row = new_row
         self._col = new_col
         self.repaint()
@@ -404,7 +404,7 @@ class Board(QFrame):
         testAndPlace().
         '''
         for (c,r) in self._current.coords:
-            self.setCell(c+self._col, r+self._row, self._current)
+            self.setCell(col=c+self._col, row=r+self._row, shape=self._current)
 
     def winnow(self) -> int :
         '''
@@ -459,7 +459,7 @@ class Board(QFrame):
                 self.drawCell(painter,
                                 rect.left() + h * self.cell_width,
                                 rect.top() + v * self.cell_height,
-                                self.shapeInCell(v, h)
+                                self.shapeInCell(row=v, col=h)
                                 )
 
         if self._current is not NO_T_mo:
@@ -796,9 +796,9 @@ class Game(QFrame):
         if 0 == len(self.bag_of_pieces):
             self.bag_of_pieces = self.make_bag()
         if self.board.testAndPlace(
-            self.bag_of_pieces.pop(),
-            1,
-            self.board.cols//2) == Board.OK :
+            new_piece=self.bag_of_pieces.pop(),
+            new_row=1,
+            new_col=self.board.cols//2) == Board.OK :
             return
         self.game_over()
 
@@ -863,9 +863,9 @@ class Game(QFrame):
         moving down.
         '''
         if self.board.testAndPlace(
-            self.board.currentPiece(),
-            self.board.currentRow() + 1,
-            self.board.currentColumn()) == Board.OK:
+            new_piece=self.board.currentPiece(),
+            new_row=self.board.currentRow() + 1,
+            new_col=self.board.currentColumn()) == Board.OK:
             # translated T_mo is happy where it is, current piece
             # has been updated to new position.
             # TODO: make move noise
@@ -903,9 +903,9 @@ class Game(QFrame):
         '''
         X = self.board.currentColumn()-1 if toleft else self.board.currentColumn()+1
         if self.board.testAndPlace(
-            self.board.currentPiece(),
-            self.board.currentRow(),
-            X) == Board.OK :
+            new_piece=self.board.currentPiece(),
+            new_row=self.board.currentRow(),
+            new_col=X) == Board.OK :
             # TODO: make move noise
             return True
         # TODO: make bonk noise
@@ -918,23 +918,23 @@ class Game(QFrame):
         new_piece = self.board.currentPiece().rotateLeft() if toleft else \
                     self.board.currentPiece().rotateRight()
         result = self.board.testAndPlace(
-            new_piece,
-            self.board.currentRow(),
-            self.board.currentColumn())
+            new_piece=new_piece,
+            new_row=self.board.currentRow(),
+            new_col=self.board.currentColumn())
         if result == Board.LEFT :
             # rotated piece overlaps left edge of board
             # try kicking it one place right
             result = self.board.testAndPlace(
-                new_piece,
-                self.board.currentRow(),
-                self.board.currentColumn()+1 )
+                new_piece=new_piece,
+                new_row=self.board.currentRow(),
+                new_col=self.board.currentColumn()+1 )
         elif result == Board.RIGHT :
             # rotated piece overlaps right edge of board,
             # try kicking it one place left
             result = self.board.testAndPlace(
-                new_piece,
-                self.board.currentRow(),
-                self.board.currentColumn()-1 )
+                new_piece=new_piece,
+                new_row=self.board.currentRow(),
+                new_col=self.board.currentColumn()-1 )
         # if the result (now) is OK, make rotate noise and return
         if result == Board.OK :
             # TODO: make rotate noise
