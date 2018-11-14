@@ -192,14 +192,14 @@ class T_mo(object):
     Return the minimum and maximum r and c values of this T_mo. These are
     used to compute collisions.
     '''
-    def r_max(self) -> int :
-        return max( (r for (c,r) in self.coords) )
-    def r_min(self) -> int :
-        return min( (r for (c,r) in self.coords) )
-    def c_max(self) -> int :
-        return max( (c for (c,r) in self.coords) )
-    def c_min(self) -> int :
-        return min( (c for (c,r) in self.coords) )
+    #def r_max(self) -> int :
+        #return max( (r for (c,r) in self.coords) )
+    #def r_min(self) -> int :
+        #return min( (r for (c,r) in self.coords) )
+    #def c_max(self) -> int :
+        #return max( (c for (c,r) in self.coords) )
+    #def c_min(self) -> int :
+        #return min( (c for (c,r) in self.coords) )
 
     '''
     Return a new T_mo with its shape rotated either left or right. Note that
