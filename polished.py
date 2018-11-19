@@ -23,6 +23,7 @@ Board showing the next piece to come.
 from PyQt5.QtWidgets import (
     QFrame,
     QHBoxLayout,
+    QLabel,
     QMainWindow,
     QMessageBox,
     QSizePolicy,
@@ -631,7 +632,7 @@ class Game(QFrame):
         Create the count of lines cleared.
         '''
         self.timer = QBasicTimer()
-        self.linesCleared = 0
+        self.lines_cleared = 0
         self.timeStep = Game.StartingSpeed
         '''
         Create the flag that is set True after clearing any complete lines,
@@ -715,12 +716,34 @@ class Game(QFrame):
             )
         '''
         Create the playing board and lay it out.
-        TODO: create preview board and score display.
+        There are three blocks to the board:
+            Left:    Held piece (TODO)
+                     Lines cleared
+                     Score (TODO)
+            Center:  The game board
+            Right:   The Next piece preview
         '''
+        layout = QHBoxLayout()
+
+        left_vb = QVBoxLayout()
+        self.held_piece = NO_T_mo
+        self.held_display = Board(self,5,5)
+        left_vb.addWidget(self.held_display,1)
+        left_vb.addWidget( QLabel('Lines\nCleared'),1 )
+        self.lines_display = QLabel('0')
+        self.lines_display.setAlignment(Qt.AlignRight)
+        left_vb.addWidget(self.lines_display,1)
+        left_vb.addStretch(2)
+        layout.addItem(left_vb)
+
         self.board = Board(self,22,10)
-        hb = QHBoxLayout()
-        hb.addWidget(self.board,2)
-        self.setLayout(hb)
+        layout.addWidget(self.board,2)
+
+        right_vb = QVBoxLayout()
+        right_vb.addWidget( QLabel("Nonce"))
+        layout.addChildLayout(right_vb)
+
+        self.setLayout(layout)
         '''
         Initialize all the above.
         '''
@@ -746,7 +769,10 @@ class Game(QFrame):
         self.isPaused = False
         self.isOver = False
         self.timeStep = Game.StartingSpeed
-        self.linesCleared = 0
+        self.lines_cleared = 0
+        self.lines_display.setText('0')
+        self.held_piece = NO_T_mo
+        self.held_display.clear()
         self.bag_of_pieces = self.make_bag()
         self.update( self.contentsRect() ) # force a paint event
 
@@ -883,8 +909,9 @@ class Game(QFrame):
         n = self.board.winnow()
         if n :
             # TODO make clearing noise
-            self.linesCleared += n
-            line_units = 1 + self.linesCleared // Game.LinesPerStepChange
+            self.lines_cleared += n
+            self.lines_display.setText( str(self.lines_cleared) )
+            line_units = 1 + self.lines_cleared // Game.LinesPerStepChange
             self.timeStep = max(20,
                 int( Game.StartingSpeed * ( Game.TimeFactor ** line_units))
                 )
