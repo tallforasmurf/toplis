@@ -5,23 +5,26 @@ This is an expansion of the simple game (see standard.py) using the same
 techniques, but adding full game features such as wall-kick, next-piece
 preview, score records, and sound. In general game play conforms to the
 Tetris Guideline for play as described at
-    http://tetris.wikia.com/wiki/Random_Generator
+    http://tetris.wikia.com/wiki/Tetris_Wiki
 
 The GUI structure is based on a QMainWindow. The provided Tool Bar offers
 buttons for Pause, Restart, Sound, Music, and for a display of high scores.
 
-The status line shows the game state, either paused or count of completed
+The status line shows the game state, either paused, or a count of completed
 lines.
 
 The central widget is a QFrame which implements the game; it is in effect the
-"controller" in an MVC design. The Game contains a Board composed of cells in
-22 rows and 10 columns (both "model" and "view"). To its right is a small 4x4
-Board showing the next piece to come.
+"controller" in an MVC design. The Game contains a Board object (comprising
+both "model" and "view") composed of cells in 22 rows and 10 columns. To its
+right is a small Board showing the next pieces to come. On the left is a
+small Board showing the currently "held" piece if any.
 
 '''
 
 from PyQt5.QtWidgets import (
+    QFormLayout,
     QFrame,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QMainWindow,
@@ -36,12 +39,14 @@ from PyQt5.QtCore import (
     QBasicTimer,
     QEvent,
     QPoint,
+    QRect,
     QSettings,
     QSize,
     pyqtSignal
     )
 from PyQt5.QtGui import (
     QColor,
+    QFont,
     QIcon,
     QPainter,
     QPixmap
@@ -58,15 +63,22 @@ import random
 import enum
 
 '''
+
+Tetronimo Object
+================
+
 We begin by defining the Tetronimo, the basic game piece.
 
-Name the seven Tetronimoes via an IntEnum. 'O', 'I', 'T' and so forth are the
-standardized names for the shapes.
+Names of Shapes
+---------------
+
+Name the seven Tetronimoes via an IntEnum. Note that 'O', 'I', 'T' and so
+forth are the standardized names for the shapes, per the tetris wiki.
 
 The 'N' Tetronimo is the non-shape that appears in any empty cell of the
 board. Only one 'N' is ever instantiated, as the global NO_T_mo.
-'''
 
+'''
 class T_ShapeNames(enum.IntEnum):
     N = 0 # the non-shape in an empty cell
     O = 1 # square
@@ -76,17 +88,20 @@ class T_ShapeNames(enum.IntEnum):
     J = 5
     S = 6
     Z = 7
-
 '''
+
+Colors of Tetronimos
+--------------------
+
 Assign standardized colors for the Tetronimoes, as specified in the Tetris
 guidelines.
 
-The color names are given as strings, chosen from the list of available
-predefined colors that is returned by QColor.colorNames(). (FYI: there are
-148 names in that list, alphabetically from "aliceblue" to "yellowgreen".)
+The colors are chosen from the list of available predefined colors that is
+returned by QColor.colorNames(). (FYI: there are 148 names in that list,
+alphabetically from "aliceblue" to "yellowgreen".)
 
-The special color defined for the 'N' tetronimo is the color of an empty
-board cell.
+The special color defined for the 'N' tetronimo is the color that will appear
+in every empty board cell.
 
 '''
 T_Colors = {
@@ -100,9 +115,12 @@ T_Colors = {
     T_ShapeNames.Z : QColor('red')
     }
 '''
-Assign each Tetronimoe its shape and initial orientation.
+
+Tetronimo Shape and Initial Orientation
+----------------------------------------
 
 Per the guidelines, quote,
+
     "The playfield is ... 10 by 20 ..."
     "The tetriminoes spawn horizontally with J, L and T spawning flat-side first."
     "The I and O spawn in the middle columns
@@ -112,38 +130,48 @@ As I interpret that, if the columns are numbered 0-9, the O spawns in columns
 4, 5, and the I in columns 3, 4, 5, 6. The others (which are all 3 squares
 wide when horizontal) spawn in columns 3, 4, 5.
 
-The following design is due to Jan Bodnar (see URL in standard.py). Each
-Tetronimo is described by a list of four (col,row) tuples that specify four
-cells at the center of a coordinate plane. The initial values specify the
-initial (spawn) rotation of a Tetronimo, where (col:0,row:0) will be spawned
-into row 1 (second-topmost), column 4 of the board.
+The following design is due to Jan Bodnar (see URL to his game in
+standard.py). Each Tetronimo is described by a tuple holding four (col,row)
+tuples that specify four cells at the center of a coordinate plane.
+
+The initial values when a tetronimo is created specify the initial (spawn)
+rotation of a Tetronimo, where (col:0,row:0) will be spawned into row 1,
+column 4 of the board.
 
 For example the Z is:
+
                 (-1,-1)(0,-1)
                        (0,0) (1,0)
+
 while the L is:
-                            (1,-1)
-                (-1,0)(0,0) (1,0)
+
+                           (1,-1)
+                (-1,0)(0,0)(1,0)
+
+Tetronimo Rotation
+------------------
 
 This design has the very nice property that rotation is easy. To rotate a
 shape left, replace the tuples of the original shape with the tuple
 comprehension,
 
-    ( (r,-c) for (c,r) in original_shape )
+    ( (r,-c) for (c,r) in current_shape )
 
 That is, reverse the meaning of the row and column values, negating the
-column number. For example if L is (c,r) in
+column number. For example if L is currently
 
-                          (1,-1)
+                           (1,-1)
                 (-1,0)(0,0)(1,0)
 
-then taking ((r,-c) for (c,r)) is
+then the new values given by `((r,-c) for (c,r) in current_shape)` is
+
              (-1,-1) (0,-1)
                      (0,0)
                      (0,1)
 
-To rotate a shape right, use ((-r,c) for (c,r) in original_shape),
+To rotate a shape right, use `((-r,c) for (c,r) in current_shape)`,
 which applied to original L gives
+
               (0,-1)
               (0,0)
               (0,1) (1,1)
@@ -161,15 +189,19 @@ T_Shapes = {
     }
 
 '''
-Define the class of Tetronimo game pieces, T_mo. A game piece knows its shape
-name and color, and its current shape in terms of a tuple of the four (x,y)
-values of each of its cells, initialized as in T_Shapes above.
 
-A T_mo can rotate, but note that the rotate_left() and rotate_right() methods
-do NOT modify shape of the "self" T_mo. They return a NEW T_mo intended to
-replace this one. This is done so that the game can test a rotation. If the
-new, rotated T_mo is legal, it will replace the old; but if it it collides
-with something, the original T_mo can be left unchanged.
+Tetronimo Class Definition (T_mo)
+---------------------------------
+
+A Tetronimo knows its shape name and color, and its current shape in terms of
+a tuple of the four (c,r) values of each of its cells, initialized from
+T_Shapes above.
+
+A T_mo can rotate, but note that the `rotate_left()` and `rotate_right()`
+methods do _not_ modify the shape of the "self" T_mo! They return a _new_
+T_mo intended to replace this one. This is done so that the game can test a
+rotation. If the new, rotated T_mo is legal, it will replace the old; but if
+it it collides with something, the original T_mo can be left unchanged.
 
 '''
 class T_mo(object):
@@ -192,6 +224,7 @@ class T_mo(object):
     '''
     Return the minimum and maximum r and c values of this T_mo. These are
     used to compute collisions.
+    TODO: NOT USED ELIMINATE?
     '''
     #def r_max(self) -> int :
         #return max( (r for (c,r) in self.coords) )
@@ -203,58 +236,75 @@ class T_mo(object):
         #return min( (c for (c,r) in self.coords) )
 
     '''
-    Return a new T_mo with its shape rotated either left or right. Note that
-    we cannot type-declare these methods as "-> T_mo" because when these
-    lines are executed, the name T_mo has not been defined yet! Little flaw
-    in the Python typing system.
+    Return a new T_mo with its shape rotated either left or right.
+
+    Just in case at some point we need to sub-class the T_mo, we create the
+    new object using type(self)() instead of naming the class explicitly.
     '''
     def rotateLeft(self) :
-        new_tmo = T_mo( self.t_name )
+        new_tmo = type(self)( self.t_name )
         new_tmo.coords = tuple( ((r,-c) for (c,r) in self.coords ) )
         return new_tmo
     def rotateRight(self) :
-        new_tmo = T_mo( self.t_name )
+        new_tmo = type(self)( self.t_name )
         new_tmo.coords = tuple( ((-r,c) for (c,r) in self.coords ) )
         return new_tmo
 
 '''
-This global instance of T_mo is the only one of type N. It is referenced from
-any unoccupied board cell, giving empty cells their color.
+
+Global "N" T_mo
+---------------
+
+This global instance of T_mo is the only one of an 'N' tetronimo. It is
+referenced from any unoccupied board cell, giving empty cells their color.
+Thus `x is NO_T_mo` is the test for an empty cell.
+
 '''
 NO_T_mo = T_mo( T_ShapeNames.N )
-
 '''
-        Board
+
+The Board
+=========
 
 The Board object displays as an array of square cells. The number of rows and
-columns are initialization parameters. Each cell consists of a reference to a
-T_mo; the color of that T_mo is the color of the cell. Empty cells all refer
-to the global NO_T_mo, and so have a light gray color.
+columns are initialization parameters. The main board of course is 10x20, but
+the Board for the preview is smaller.
 
-The cells are drawn during a paint event, and the paintEvent() method and its
-subroutines are the bulk of the Board logic.
+The cells are drawn during a paint event, and the `paintEvent()` method and
+its subroutines are the bulk of the Board logic. Each cell of a Board
+contains only a reference to a T_mo. The color of that T_mo is the color of
+the cell. Empty cells all refer to the global `NO_T_mo` and so are drawn with
+a light gray color.
 
 The Board keeps a reference to a "current" T_mo. On the main board this is
-the T_mo that the user is controlling. During a paintEvent, the current T_mo
-is drawn separately, after the other cells.
+the T_mo that the user is controlling. During a paintEvent, this T_mo is
+drawn separately, after the other cells and on top of them.
+
+Board Geometry
+--------------
 
 Board location is by row and column. Columns are numbered from 0 to
-self.cols, increasing numbers moving left to right. Rows are numbered from 0
-to self.rows, increasing numbers moving from 0 at the top toward the bottom.
-Some confusion arises (in me!) from trying to use "x" and "y", so all access
-to coordinates are in terms of "row" and "col" (or r/c).
+self.cols, increasing from left to right. Rows are numbered from 0 to
+self.rows, increasing from 0 at the top toward the bottom.
+
+Some confusion arises (in me!) from trying to use "x" and "y" when referring
+to cells. So in the code all access to coordinates is in terms of "row" and
+"col" (or r/c).
 
 The location of the center cell of the current T_mo is returned by
 currentColumn() and currentRow(). (The center cell is the one with value
-(0,0) in the T_Shapes table.)
+(0,0) in the T_Shapes table, and this remains true under rotation.)
 
-The Board also provides the testAndPlace() method, which tests the four cells
-of a proposed T_mo against the existing cells and the Board margins. It
+Testing a Move
+--------------
+
+The Board provides the `testAndPlace()` method, which tests the four cells
+of a proposed T_mo against the Board margins and the existing cells. It
 returns one of three values,
 
   * Board.OK when the cells of the T_mo do not overlap a colored cell and do
-    not extend outside the board. The given T_mo is recorded as the current
-    piece, replacing it.
+    not extend outside the board. The given T_mo will be assigned as the
+    current piece, replacing it.
 
   * Board.TOUCH when a cell of the T_mo overlaps a cell that is not
     empty. (This is tested before the following tests.)
@@ -264,29 +314,45 @@ returns one of three values,
 
   * Board.RIGHT when it would fall outside the right margin.
 
-Finally the Board provides the place() method, which merges the current T_mo
-into the cells of the board, and the winnow() method that looks for and
-removes completed lines. The number of removed lines is returned.
+Completing a Move
+-----------------
+
+The Board provides the `place()` method, which merges the current T_mo
+into the cells of the board.
+
+Next to be called is the `winnow()` method that looks for and removes
+completed lines. The number of removed lines is returned.
+
+Retaining Cell Aspect Ratio
+---------------------------
 
 In order to ensure that all board cells are drawn as squares, the aspect
 ratio of the board must be preserved during a resize event. Supposedly this
-can be done by implementing the hasHeightForWidth and heightForWidth
-methods but in fact those are never called during a resize. What does work is
-the method described here:
+can be done by implementing the QWidget methods `hasHeightForWidth` and
+`heightForWidth` but in fact those are never called during a resize (yes,
+the Qt docs lie).
+
+What does work is the method described here:
 
 https://stackoverflow.com/questions/8211982/qt-resizing-a-qlabel-containing-a-qpixmap-while-keeping-its-aspect-ratio
 
-which is, during a resizeEvent, to call setContentsMargins() to set new
-margins which force the resized height and width into the proper ratio. In
-this case rather than setting contents margins directly, we use the Widget
+which is, during a resizeEvent, to call `setContentsMargins()` to set new
+margins which will force the resized height and width into the proper ratio.
+In this case, rather than setting contents margins directly, we use the Widget
 CSS styling to set the padding of the board. Same idea.
 
 '''
 class Board(QFrame):
+    '''
+    Values returned by testAndPlace()
+    '''
     OK = 0
     TOUCH = 1
     LEFT = 2
     RIGHT = 3
+    '''
+    CSS style applied during a resize. format() is used to install numbers.
+    '''
     board_style = '''
     Board{{
         border: 2px solid gray;
@@ -304,8 +370,8 @@ class Board(QFrame):
         self.setStyleSheet( Board.board_style.format(0,0,0,0) )
         '''
         Set the size policy so we cannot shrink below 10px per cell, but can
-        grow. Note any growth will be preceded by a resize event, and see
-        resizeEvent() below for how that is handled to maintain square cells.
+        grow. Any change will be preceded by a resize event; see
+        `resizeEvent()` below for how that is handled to maintain square cells.
         '''
         self.setMinimumHeight(int(10*rows))
         self.setMinimumWidth(int(10*columns))
@@ -318,19 +384,22 @@ class Board(QFrame):
         self.cells = [] # type: List[T_mo]
         self.clear() # populate the board with empty cells
         '''
-        Slots to hold info about the current piece
+        These slots hold info about the current piece, if any.
         '''
         self._current = NO_T_mo # type: T_mo
         self._col = 0
         self._row = 0
 
+    '''
+    Clear the board to empty cells, at initialization and when the game is
+    reset. Force a paint event so the board is re-drawn.
+    '''
     def clear(self):
         self._current = NO_T_mo
         self._col = 0
         self._row = 0
         self.cells = [NO_T_mo]*self.size
-        self.update( self.contentsRect() ) # force a paint event
-
+        self.update( self.contentsRect() ) # forces a paint event
     '''
     Return the current piece or its location
     '''
@@ -340,18 +409,15 @@ class Board(QFrame):
         return self._col
     def currentRow(self) -> int:
         return self._row
-
+    '''
+    Return the T_mo in our array at a given row and column.
+    '''
     def shapeInCell(self,row:int,col:int) -> T_mo:
-        '''
-        Return the T_mo in our array at row x, column y
-        '''
         return self.cells[row*self.cols + col]
-
-    def setCell(self, col:int, row:int, shape:T_mo) :
-        '''
-        Set the specified cell at row x, column y, to contain
-        the given T_mo.
-        '''
+    '''
+    Set the cell at a given row and column to contain the given T_mo.
+    '''
+    def setCell(self, row:int, col:int, shape:T_mo) :
         self.cells[row*self.cols + col] = shape
 
     '''
@@ -362,40 +428,40 @@ class Board(QFrame):
     If there exists another tetronimo already in a cell that the new position
     would occupy, the change is not allowed and we return Board.TOUCH. If the
     T_mo would go outside a wall, we return Board.LEFT or Board.RIGHT. In
-    these cases, no change is made to the board and the caller has to decide
-    what to do.
+    these cases, no change is made to the board. The caller has to decide
+    what to do next.
 
-    If the changed tetronimo covers only empty cells, the move is completed
-    by saving the T_mo and its coordinates as the current piece, to be
-    returned by currentPiece()/currentColumn()/currentRow().
+    If the proposed tetronimo covers only empty cells, the move is completed
+    by saving the T_mo and its coordinates as the current piece, replacing
+    the previous current piece.
 
     After accepting a change we call QWidget.repaint(), to force a call to
     paintEvent() so that the piece is seen to descend.
     '''
 
-    def testAndPlace(self, new_piece, new_row, new_col) ->int :
-        #print('tp at r{} c{}'.format(new_row,new_col), end='')
+    def testAndPlace(self, new_piece:T_mo, new_row:int, new_col:int) ->int :
+        #print('t&p at r{} c{} ->'.format(new_row,new_col), end=' ')
         for i in range(4):
             r = new_row + new_piece.r(i)
             c = new_col + new_piece.c(i)
             if c < 0 :
-                #print(' left')
+                #print('left')
                 return Board.LEFT
             elif c >= self.cols:
-                #print(' right')
+                #print('right')
                 return Board.RIGHT
             elif r < 0 \
             or r >= self.rows \
             or self.shapeInCell(row=r,col=c) is not NO_T_mo:
-                #print(' touch')
+                #print('touch')
                 return Board.TOUCH
 
         # It fits, place it
+        #print('ok')
         self._current = new_piece
         self._row = new_row
         self._col = new_col
         self.repaint()
-        #print(' ok')
         return Board.OK
 
     def place(self):
@@ -405,14 +471,19 @@ class Board(QFrame):
         testAndPlace().
         '''
         for (c,r) in self._current.coords:
-            self.setCell(col=c+self._col, row=r+self._row, shape=self._current)
+            self.setCell(row=r+self._row, col=c+self._col, shape=self._current)
+    '''
+    After place() has been called, winnow can be called to find out if any
+    rows have been completely filled, and eliminate them. As many as four
+    rows might have been filled (by a well-placed I piece). Filled rows need
+    not be contiguous.
 
+    Note that making sounds, updating scores, etc. are up to the caller.
+    '''
     def winnow(self) -> int :
         '''
-        After place() has been called, this method is called to find out if
-        any rows have been completely filled, and eliminate them. As many as
-        four rows might have been filled (by a well-placed I piece). Filled
-        rows need not be contiguous.
+        Step through the rows of the board and make a list of the row indices
+        of rows that are full, i.e. do not contain any NO_T_mo cells.
         '''
         full_rows = []
         for row in range(0, len(self.cells), self.cols) :
@@ -422,14 +493,19 @@ class Board(QFrame):
 
         if full_rows:
             '''
-            Rows whose starting index is in full_rows are deleted from the
-            cells list. Do this from last (higher index) to first (lower index)
-            so as not to invalidate the index of undeleted rows.
+            Full rows are deleted from the cells list. Do this from last
+            (higher index) to first (lower index) so as not to invalidate the
+            index of undeleted rows.
             '''
             for row in reversed(full_rows):
                 del self.cells[row:row+self.cols]
             '''
-            Install an equal number of blank rows at the top.
+            Install an equal number of blank rows at the top, pushing existing
+            non-full rows down.
+
+            Note this means the "falling" of rows happens all at once. Some
+            tetris games let the rows fall separately like bricks, and that
+            would be nice.
             '''
             new_rows = [NO_T_mo]*(len(full_rows)*self.cols)
             self.cells = new_rows + self.cells
@@ -437,15 +513,15 @@ class Board(QFrame):
             #self.repaint()
 
         return len(full_rows)
-
     '''
     A paint event occurs when the Qt app thinks this QFrame should be
     updated. The event handler is responsible for drawing all the shapes in
-    the contents rectangle of this widget. The contents margins that may be
-    set during a resize event to maintain the aspect ratio, are not painted
-    here. They are painted by the containing widget.
-    '''
+    the contents rectangle of this widget.
 
+    Note that the contents margins that may be set during a resize event to
+    maintain the aspect ratio, are not painted here. Margins are painted by the
+    containing widget.
+    '''
     def paintEvent(self, event):
         rect = self.contentsRect()
         # Note the pixel dimensions of one cell, for use in the drawCell method.
@@ -465,7 +541,7 @@ class Board(QFrame):
 
         if self._current is not NO_T_mo:
             '''
-            Draw the active tetronimo at its given location.
+            Draw the current tetronimo at its given location.
             '''
             for i in range(4):
                 c = self._col + self._current.c(i)
@@ -506,9 +582,7 @@ class Board(QFrame):
                          x + self.cell_width - 1, y + self.cell_height - 1)
         painter.drawLine(x + self.cell_width - 1, y + self.cell_height - 1,
                          x + self.cell_width - 1, y + 1)
-
     '''
-
     A resize event occurs once, before this widget is made visible (promised
     in the doc page for QWidget), and again whenever the user drags our
     parent widget to a new shape.
@@ -579,15 +653,17 @@ class Board(QFrame):
         super().resizeEvent(event)
 
 '''
-        Game frame
 
-A frame that contains the playing field (a Board), a display of the upcoming
-T_mo (also a Board), a display of the current count of lines and current
-score.
+The Game Class
+==============
 
-The logic in this frame implements the rules of the game, responding
-appropriately to keystrokes and timer events to move the current piece
-and update the board when the current piece stops moving.
+The Game is a frame that contains the playing field (a Board), and shows a
+preview of the upcoming T_mo (also a Board), a display of the current count
+of lines and current score.
+
+The Game implements the rules of the game by responding appropriately to
+keystrokes and timer events to move the current piece and update the board
+when the current piece stops moving.
 
 TODO:
     initialize the UI
@@ -623,7 +699,7 @@ class Game(QFrame):
         self.high_score = high_score
         self.sfx = sfx_dict
         '''
-        Get all keystrokes in this widget.
+        Direct all keystrokes seen by a contained widget, to this widget.
         '''
         self.setFocusPolicy(Qt.StrongFocus)
         '''
@@ -632,8 +708,8 @@ class Game(QFrame):
         Create the count of lines cleared.
         '''
         self.timer = QBasicTimer()
-        self.lines_cleared = 0
         self.timeStep = Game.StartingSpeed
+        self.lines_cleared = 0
         '''
         Create the flag that is set True after clearing any complete lines,
         so that the next piece is not created until the timer expires.
@@ -651,17 +727,18 @@ class Game(QFrame):
         Create the "bag" of upcoming T-mos.
         '''
         self.bag_of_pieces = [] # Type: typing.List[T_mo]
-
         '''
         Create sets of accepted keys, for quick reference during a
-        keyPressEvent. The names of keys and modifier codes are defined in
-        the Qt namespace, see http://doc.qt.io/qt-5/qt.html#Key-enum
-
-        For speed of recognition we take the modifier value and OR it with
-        the key code. The keys to be recognized are those listed in "4.1
+        keyPressEvent. The keys to be recognized are those listed in "4.1
         Table of Basic Controls" in the Tetris guidelines. The frozenset
-        constructor requires an iterator as its argument; we give it a tuple,
-        hence lots of parens.
+
+        The names of keys and modifier codes are defined in the Qt namespace,
+        see http://doc.qt.io/qt-5/qt.html#Key-enum. For simple recognition we
+        take the modifier value and OR it with the key code.
+
+        We create a set of the key values that command each operation. For
+        speed we use frozenset. The frozenset constructor requires an
+        iterator as its argument; we give it a tuple, hence lots of parens.
 
         Note: on the macbook (at least) the arrow keys have the keypad bit
         set. Don't know about other platforms.
@@ -708,7 +785,10 @@ class Game(QFrame):
             int(Qt.Key_Escape),
             int(Qt.Key_F1)
             ))
-
+        '''
+        Merge the sets of accepted keys into one set so we can make a very
+        fast "Do we handle this key?" test.
+        '''
         self.validKeys = frozenset(
             self.Keys_left | self.Keys_right | self.Keys_hard_drop | \
             self.Keys_soft_drop | self.Keys_clockwise | \
@@ -722,32 +802,112 @@ class Game(QFrame):
                      Score (TODO)
             Center:  The game board
             Right:   The Next piece preview
+
+        Create the game board.
+        '''
+        self.board = Board(self,22,10)
+        '''
+        Create the layout as an HBox. Give it left and right sublayouts
+        and the game board in the center.
         '''
         layout = QHBoxLayout()
-
         left_vb = QVBoxLayout()
-        self.held_piece = NO_T_mo
-        self.held_display = Board(self,5,5)
-        left_vb.addWidget(self.held_display,1)
-        left_vb.addWidget( QLabel('Lines\nCleared'),1 )
-        self.lines_display = QLabel('0')
-        self.lines_display.setAlignment(Qt.AlignRight)
-        left_vb.addWidget(self.lines_display,1)
-        left_vb.addStretch(2)
-        layout.addItem(left_vb)
-
-        self.board = Board(self,22,10)
-        layout.addWidget(self.board,2)
-
         right_vb = QVBoxLayout()
-        right_vb.addWidget( QLabel("Nonce"))
-        layout.addChildLayout(right_vb)
+        layout.addLayout(left_vb,1)
+        layout.addWidget(self.board,2)
+        layout.addLayout(right_vb,1)
+        '''
+        Create the T_mo last held, and a tiny Board in which to display it.
+        '''
+        self.held_piece = NO_T_mo
+        self.held_display = Board(None,5,5)
+        '''
+        Create the numerical variables that hold the lines cleared and the
+        current score. (self.high_score already exists).
+        '''
+        self.current_score = 0
+        self.lines_cleared = 0
+        '''
+        The left VBox has the held-piece display at the top, then space.
+        '''
+        left_vb.addWidget(self.held_display,1)
+        left_vb.addStretch(2)
+        '''
+        Create a grid layout for the three score numbers. Each row has a
+        QLabel for a caption, and QLabel to display the value. We keep a reference
+        to the latter so its text can be updated as needed.
+        '''
+        score_grid = QGridLayout()
+        lines_caption = self.make_label('Lines Cleared')
+        score_grid.addWidget(lines_caption, 0, 0, 1, 1)
+        self.lines_display = self.make_label()
+        score_grid.addWidget(self.lines_display, 0, 1, 1, 1)
+        score_caption = self.make_label('Score')
+        score_grid.addWidget(score_caption, 1, 0, 1, 1)
+        self.score_display = self.make_label()
+        score_grid.addWidget(self.score_display, 1, 1, 1, 1)
+        high_caption = self.make_label('High Score')
+        score_grid.addWidget(high_caption, 2, 0, 1, 1)
+        self.high_display = self.make_label()
+        score_grid.addWidget(self.high_display, 2, 1, 1, 1)
+
+        left_vb.addWidget(QLabel('above'))
+        left_vb.addLayout(score_grid)
+        left_vb.addWidget(QLabel('below'))
+        '''
+        Populate the right VBox with the preview board.
+        '''
+        #right_vb = QVBoxLayout()
+        #right_vb.addWidget( QLabel("Nonce"))
+        #layout.addChildLayout(right_vb)
+        right_vb.addWidget(QLabel('Preview!'))
 
         self.setLayout(layout)
         '''
         Initialize all the above.
         '''
         self.clear()
+    '''
+    Take the job of creating a QLabel for caption or score out of line.
+    Caption label has a text, and is a raised panel. Score label has no
+    text and is a sunken panel. Code from a .uic file.
+    '''
+    def make_label(self,text:str = None):
+        label = QLabel(self)
+        font = QFont()
+        font.setPointSize(18)
+        font.setBold(True)
+        font.setWeight(75)
+        label.setFont(font)
+        label.setFrameShape(QFrame.Panel)
+        label.setLineWidth(2)
+        if text: # caption
+            label.setFrameShadow(QFrame.Raised)
+            label.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+            label.setText(text)
+        else:
+            label.setFrameShadow(QFrame.Sunken)
+            label.setAlignment(Qt.AlignCenter)
+            label.setText('0')
+            label.setMinimumWidth(40)
+        return label
+
+    '''
+    Reset the game clearing everything.
+    '''
+    def clear(self):
+        self.timer.stop()
+        self.board.clear()
+        self.isStarted = False
+        self.isPaused = False
+        self.isOver = False
+        self.timeStep = Game.StartingSpeed
+        self.lines_cleared = 0
+        self.lines_display.setText('0')
+        self.held_piece = NO_T_mo
+        #self.held_display.clear()
+        self.bag_of_pieces = self.make_bag()
+        self.update( self.contentsRect() ) # force a paint event
 
     def make_bag(self) -> typing.List[T_mo] :
         '''
@@ -761,40 +921,23 @@ class Game(QFrame):
         bag = [ T_mo(T_ShapeNames(v)) for v in range(1,7) ]
         random.shuffle(bag)
         return bag
-
-    def clear(self):
-        self.timer.stop()
-        self.board.clear()
-        self.isStarted = False
-        self.isPaused = False
-        self.isOver = False
-        self.timeStep = Game.StartingSpeed
-        self.lines_cleared = 0
-        self.lines_display.setText('0')
-        self.held_piece = NO_T_mo
-        self.held_display.clear()
-        self.bag_of_pieces = self.make_bag()
-        self.update( self.contentsRect() ) # force a paint event
-
-
+    '''
+    Begin or resume play. If the board has a current piece, we are
+    resuming after a pause. Otherwise we need to start a piece.
+    '''
     def start(self):
-        '''
-        Begin or resume play. If the board has a current piece, we are
-        resuming after a pause. Otherwise we need to start a piece.
-        '''
         if self.isOver :
             self.clear()
         self.isStarted = True
         self.timer.start( self.timeStep, self )
         if self.board.currentPiece() is NO_T_mo :
             self.newPiece()
-
+    '''
+    The Pause icon has been clicked (in which case isPaused must be False,
+    because the icon is grayed out while paused), or the P key has been
+    pressed to toggle pausing (in which case isPaused could be true).
+    '''
     def pause(self):
-        '''
-        The Pause icon has been clicked (in which case isPaused is False,
-        because that icon is grayed out while paused) or the P key has
-        been pressed to toggle pausing (in which case isPaused could be true).
-        '''
         self.isPaused = not self.isPaused
         if self.isPaused :
             # stop the timer
@@ -809,15 +952,14 @@ class Game(QFrame):
         self.isStarted = False
         self.isOver = True
         # TODO: make appropriate sound
+    '''
+    Take the next piece from the bag, refilling the bag if necessary, and
+    put it on the board at the middle column and row 1 (second from top).
+    If it won't fit, the game is over.
 
+    TODO: preview
+    '''
     def newPiece(self):
-        '''
-        Take the next piece from the bag, refilling the bag if necessary, and
-        put it on the board at the middle column and row 1 (second from top).
-        If it won't fit, the game is over.
-
-        TODO: preview
-        '''
         #print('new piece')
         if 0 == len(self.bag_of_pieces):
             self.bag_of_pieces = self.make_bag()
@@ -827,16 +969,15 @@ class Game(QFrame):
             new_col=self.board.cols//2) == Board.OK :
             return
         self.game_over()
+    '''
+    A timer has expired. Normally this means it is time to move the
+    current piece down one line.
 
+    If we are waiting after clearing whole lines, the wait is over and it
+    is time to start a new tetronimo. In that case, we need to re-set the
+    timer interval, as it may have been changed while clearing lines.
+    '''
     def timerEvent(self, event:QEvent):
-        '''
-        A timer has expired. Normally this means it is time to move the
-        current piece down one line, if possible.
-
-        If we are waiting after clearing whole lines, the wait is over and it
-        is time to start a new tetronimo. In that case, we need to re-set the
-        timer interval, as it may have been changed while clearing lines.
-        '''
         event.accept()
         #print('timer')
         if not self.waitForNextTimer:
@@ -846,14 +987,13 @@ class Game(QFrame):
             self.timer.stop()
             self.timer.start( self.timeStep, self )
             self.newPiece()
-
+    '''
+    Process a key press. Any key press (not release) while the focus is
+    in the board comes here. The key code is event.key() If the key is in
+    self.validKeys, we can handle the event. Otherwise pass it to our
+    parent.
+    '''
     def keyPressEvent(self, event:QEvent):
-        '''
-        Process a key press. Any key press (not release) while the focus is
-        in the board comes here. The key code is event.key() If the key is in
-        self.validKeys, we can handle the event. Otherwise pass it to our
-        parent.
-        '''
         if self.isStarted and self.board.currentPiece() is not NO_T_mo :
             key = int(event.key()) | int(event.modifiers())
             if key in self.validKeys :
@@ -877,17 +1017,16 @@ class Game(QFrame):
         if not event.isAccepted():
             '''either we are paused or not one of our keys'''
             super().keyPressEvent(event)
+    '''
+    Move the active T_mo down one line, either because the timer expired
+    or a soft-drop key was pressed. If successful, return True.
 
+    If it can't be moved down, place it into the board and return False.
+
+    Note we don't expect to get Board.LEFT/RIGHT returns when
+    moving down.
+    '''
     def oneLineDown(self):
-        '''
-        Move the active T_mo down one line, either because the timer expired
-        or a soft-drop key was pressed. If successful, return True.
-
-        If it can't be moved down, place it into the board and return False.
-
-        Note we don't expect to get Board.LEFT/RIGHT returns when
-        moving down.
-        '''
         if self.board.testAndPlace(
             new_piece=self.board.currentPiece(),
             new_row=self.board.currentRow() + 1,
@@ -913,21 +1052,19 @@ class Game(QFrame):
             self.lines_display.setText( str(self.lines_cleared) )
             line_units = 1 + self.lines_cleared // Game.LinesPerStepChange
             self.timeStep = max(20,
-                int( Game.StartingSpeed * ( Game.TimeFactor ** line_units))
-                )
+                int(Game.StartingSpeed * ( Game.TimeFactor ** line_units))
+                               )
         return False
-
+    '''
+    The user wants to slam the current piece to the bottom. Move it
+    down repeatedly until it hits bottom.
+    '''
     def dropDown(self):
-        '''
-        The user wants to slam the current piece to the bottom. Move it
-        down repeatedly until it hits bottom.
-        '''
         while self.oneLineDown() : pass
-
+    '''
+    The user has hit a key to move the current piece left or right
+    '''
     def moveSideways(self, toleft:bool) :
-        '''
-        The user has hit a key to move the current piece left or right
-        '''
         X = self.board.currentColumn()-1 if toleft else self.board.currentColumn()+1
         if self.board.testAndPlace(
             new_piece=self.board.currentPiece(),
@@ -937,11 +1074,10 @@ class Game(QFrame):
             return True
         # TODO: make bonk noise
         return False
-
+    '''
+    The user has hit a key to rotate the current piece.
+    '''
     def rotatePiece(self, toleft:bool ) :
-        '''
-        The user has hit a key to rotate the current piece.
-        '''
         new_piece = self.board.currentPiece().rotateLeft() if toleft else \
                     self.board.currentPiece().rotateRight()
         result = self.board.testAndPlace(
@@ -970,16 +1106,17 @@ class Game(QFrame):
             # TODO: make bonk noise
             return False
 
-
-
 '''
-        Main Window
+Main Window
+===========
 
-Hosts the Game object.
-Provides a Toolbar with Pause and Restart buttons.
-Displays high scores
-Implements music including volume and on/off
-Records high scores and current geometry in settings on shutdown.
+The main window contains the Game object. It
+
+* Provides a Toolbar with Pause and Restart buttons.
+* Displays high scores.
+* Implements music including volume and on/off.
+* Records high scores in the Qt settings on shutdown.
+* Records the app geometry in the Qt settings and restores it on startup.
 
 '''
 
@@ -990,19 +1127,32 @@ class Tetris(QMainWindow):
         self.settings = settings
         self.setWindowTitle('Tetris')
         '''
-        Recover the main window geometry from settings, and the previous high
-        score.
-        TODO: decide where high score display goes and initialize it.
+        Set Geometry
+        ------------
+
+        Recover the main window geometry from settings. Resize and position
+        the default window to that geometry.
         '''
         self.move(self.settings.value("windowPosition", QPoint(50,50)))
         self.resize(self.settings.value("windowSize",QSize(500, 500)))
+        '''
+        Set High Score
+        --------------
+
+        Retrieve the previous high score.
+
+        TODO: decide where high score display goes and initialize it.
+        '''
         self.high_score = self.settings.value("highScore",0)
         '''
+        Initialize SFX
+        --------------
+
         Create sound effect objects for each of the .wav files loaded in the
         resources module: move, rotate, drop (manual), settle, line. Load them into
         a dict so they can be treated as a unit.
 
-        Each QSoundEffect loads its file, then generates the sound with low
+        Each QSoundEffect object loads its file, then can generate the sound with low
         latency when its play() method is called.
 
         The disadvantage of having one object per sound is, that each one has
@@ -1023,6 +1173,9 @@ class Tetris(QMainWindow):
         self.sfx['settle'] = makeSFX('settle.wav')
 
         '''
+        Initialize the Game
+        --------------------
+
         Create the game and make it the central widget.
         Make keyboard focus go to it.
         '''
@@ -1030,6 +1183,9 @@ class Tetris(QMainWindow):
         self.setCentralWidget(self.game)
         self.setFocusProxy(self.game)
         '''
+        Initialize the Toolbar
+        ----------------------
+
         Create the ToolBar and populate it with our actions. Connect
         each action's actionTriggered signal to its relevant slot.
         '''
@@ -1103,9 +1259,12 @@ class Tetris(QMainWindow):
             self.game.isStarted )
 
     '''
-    Slots to receive clicks on the control buttons.
+    Define Control Actions
+    ----------------------
 
-    Play button: because of enableButtons, this is only entered when the game
+    These "slots" receive clicks on the control buttons.
+
+    Play button: because of enableButtons(), this is only entered when the game
     state is either not-started, or paused.
     '''
     def playAction(self, toggled:bool):
@@ -1134,11 +1293,12 @@ class Tetris(QMainWindow):
     setting the value of the slider, as in muteAction below.
 
     Set the value on each of the QSoundEffect objects we own. Note that the
-    .setVolume() method wants a real, where the slider value is an int.
+    QSoundEffect.setVolume() method wants a real, but the slider value is an int.
     '''
     def volumeAction(self, slider_value:int ) :
+        real_volume = slider_value/100.0
         for sfx in self.sfx.values() :
-            sfx.setVolume( slider_value/100.0 )
+            sfx.setVolume( real_volume )
     '''
     This action is called only when the user has dragged the volume slider
     and released it. The volumeAction volume change signal that calls
@@ -1152,9 +1312,9 @@ class Tetris(QMainWindow):
     This slot is called when the Mute button is clicked by the user. The Mute
     button action is checkable, and checked is the new state, on or off.
 
-    When the state is now on, save the present volume slider value and set
-    the volume to zero. When the state is now off, reset the volume slider to
-    the saved value.
+    When the mute state is now on, save the present volume slider value and
+    set the volume to zero. When the state is now off, reset the volume
+    slider to the saved value.
     '''
     def muteAction(self, checked:bool):
         if checked :
@@ -1174,15 +1334,13 @@ class Tetris(QMainWindow):
         self.settings.setValue("volume",self.volume_slider.value())
         self.settings.setValue("mutestate",self.mute_action.isChecked())
         self.settings.setValue("mutedvol",self.muted_volume)
-
+        super().closeEvent(event)
 
 
 '''
 Command-line execution.
 TODO: decide on command parameters to support if any
 TODO: define command parameters with argparse
-TODO: implement QSettings storage for high score
-TODO: implement QSettings storage for closing geometry
 
 currently this is basically unit test
 '''
@@ -1222,7 +1380,7 @@ if __name__ == '__main__' :
     the_settings = QSettings()
     '''
     Create the main window (which creates everything else), passing
-    the settings object for use starting up and shutting down.
+    the settings object for use in starting up and shutting down.
     Then display it and begin execution.
     '''
     the_main_window = Tetris(the_settings)
