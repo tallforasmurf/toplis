@@ -781,6 +781,7 @@ class Game(QFrame):
             int(Qt.KeypadModifier)|int(Qt.Key_0)
             ))
         self.Keys_pause = frozenset((
+            int(Qt.Key_Escape),
             int(Qt.Key_P),
             int(Qt.Key_Escape),
             int(Qt.Key_F1)
