@@ -681,12 +681,12 @@ class Game(QFrame):
     '''
     StartingSpeed = 750
     '''
-    Lines to a time change
+    Lines to a level change
     '''
-    LinesPerStepChange = 20
+    LinesPerLevel = 10
     '''
     Time reduction factor: game step time is multipled by this
-    after every LinesPerStepChange lines have been cleared.
+    after every LinesPerLevel lines have been cleared.
     '''
     TimeFactor = 0.75
 
@@ -827,6 +827,7 @@ class Game(QFrame):
         '''
         self.current_score = 0
         self.lines_cleared = 0
+        self.current_level = 0
         '''
         The left VBox has the held-piece display at the top, then space.
         '''
@@ -900,6 +901,8 @@ class Game(QFrame):
         self.isPaused = False
         self.isOver = False
         self.timeStep = Game.StartingSpeed
+        self.current_score = 0
+        self.current_level = 0
         self.lines_cleared = 0
         self.lines_display.setText('0')
         self.held_piece = NO_T_mo
@@ -1048,9 +1051,9 @@ class Game(QFrame):
             # TODO make clearing noise
             self.lines_cleared += n
             self.lines_display.setText( str(self.lines_cleared) )
-            line_units = 1 + self.lines_cleared // Game.LinesPerStepChange
+            self.level = self.lines_cleared // Game.LinesPerLevel
             self.timeStep = max(20,
-                int(Game.StartingSpeed * ( Game.TimeFactor ** line_units))
+                int(Game.StartingSpeed * ( Game.TimeFactor ** self.level))
                                )
         return False
     '''
