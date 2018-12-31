@@ -920,7 +920,7 @@ class Game(QFrame):
         than two identical pieces in a row, or go longer than 12 before
         getting another of the same type.
         '''
-        bag = [ T_mo(T_ShapeNames(v)) for v in range(1,7) ]
+        bag = [ T_mo(T_ShapeNames(v)) for v in range(1,8) ]
         random.shuffle(bag)
         return bag
     '''
