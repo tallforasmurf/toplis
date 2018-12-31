@@ -851,9 +851,7 @@ class Game(QFrame):
         self.high_display = self.make_label()
         score_grid.addWidget(self.high_display, 2, 1, 1, 1)
 
-        left_vb.addWidget(QLabel('above'))
         left_vb.addLayout(score_grid)
-        left_vb.addWidget(QLabel('below'))
         '''
         Populate the right VBox with the preview board.
         '''
@@ -879,13 +877,13 @@ class Game(QFrame):
         font.setBold(True)
         font.setWeight(75)
         label.setFont(font)
-        label.setFrameShape(QFrame.Panel)
-        label.setLineWidth(2)
         if text: # caption
-            label.setFrameShadow(QFrame.Raised)
+            #label.setFrameShadow(QFrame.Raised)
             label.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
             label.setText(text)
         else:
+            label.setFrameShape(QFrame.Panel)
+            label.setLineWidth(2)
             label.setFrameShadow(QFrame.Sunken)
             label.setAlignment(Qt.AlignCenter)
             label.setText('0')
