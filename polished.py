@@ -888,7 +888,7 @@ class Game(QFrame):
             label.setFrameShadow(QFrame.Sunken)
             label.setAlignment(Qt.AlignCenter)
             label.setText('0')
-            label.setMinimumWidth(40)
+            label.setMinimumWidth(80)
         return label
 
     '''
@@ -901,12 +901,13 @@ class Game(QFrame):
         self.isPaused = False
         self.isOver = False
         self.timeStep = Game.StartingSpeed
-        self.current_score = 0
         self.current_level = 0
+        self.current_score = 0
+        self.score_display.setText('0')
         self.lines_cleared = 0
         self.lines_display.setText('0')
         self.held_piece = NO_T_mo
-        #self.held_display.clear()
+        self.held_display.clear()
         self.bag_of_pieces = self.make_bag()
         self.update( self.contentsRect() ) # force a paint event
 
@@ -981,6 +982,7 @@ class Game(QFrame):
     def timerEvent(self, event:QEvent):
         event.accept()
         #print('timer')
+        self.score_display.setText(str(self.current_score))
         if not self.waitForNextTimer:
             self.oneLineDown()
         else:
@@ -1007,6 +1009,7 @@ class Game(QFrame):
                     self.dropDown()
                 elif key in self.Keys_soft_drop:
                     self.oneLineDown()
+                    self.current_score += 1
                 elif key in self.Keys_clockwise:
                     self.rotatePiece(toleft=False)
                 elif key in self.Keys_widdershins:
@@ -1050,6 +1053,7 @@ class Game(QFrame):
         if n :
             # TODO make clearing noise
             self.lines_cleared += n
+            self.current_score += (100,300,500,800)[n-1]
             self.lines_display.setText( str(self.lines_cleared) )
             self.level = self.lines_cleared // Game.LinesPerLevel
             self.timeStep = max(20,
@@ -1061,7 +1065,8 @@ class Game(QFrame):
     down repeatedly until it hits bottom.
     '''
     def dropDown(self):
-        while self.oneLineDown() : pass
+        while self.oneLineDown() :
+            self.current_score += 2
     '''
     The user has hit a key to move the current piece left or right
     '''
