@@ -770,7 +770,8 @@ class Game(QFrame):
             int(Qt.KeypadModifier)|int(Qt.Key_9)
             ))
         self.Keys_widdershins = frozenset((
-            int(Qt.Key_Control),
+            int(Qt.Key_Down),
+            int(Qt.KeypadModifier)|int(Qt.Key_Down),
             int(Qt.Key_Z),
             int(Qt.KeypadModifier)|int(Qt.Key_3),
             int(Qt.KeypadModifier)|int(Qt.Key_7)
