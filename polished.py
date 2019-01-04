@@ -955,6 +955,8 @@ class Game(QFrame):
         self.isStarted = False
         self.isOver = True
         if self.high_score < self.current_score :
+            #TODO: can we make the new high score flash a few times?
+            #TODO: make different end of game sound for new high score
             self.high_score = self.current_score
             self.high_display.setText(str(self.high_score))
         # TODO: make appropriate sound
@@ -1060,11 +1062,11 @@ class Game(QFrame):
         if n :
             # TODO make clearing noise
             self.lines_cleared += n
-            self.current_score += (100,300,500,800)[n-1]
+            self.current_level = self.lines_cleared // Game.LinesPerLevel
+            self.current_score += (1+self.current_level)*(100,300,500,800)[n-1]
             self.lines_display.setText( str(self.lines_cleared) )
-            self.level = self.lines_cleared // Game.LinesPerLevel
             self.timeStep = max(20,
-                int(Game.StartingSpeed * ( Game.TimeFactor ** self.level))
+                int(Game.StartingSpeed * ( Game.TimeFactor ** self.current_level))
                                )
         return False
     '''
