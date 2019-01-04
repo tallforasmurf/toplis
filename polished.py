@@ -904,6 +904,7 @@ class Game(QFrame):
         self.current_level = 0
         self.current_score = 0
         self.score_display.setText('0')
+        self.high_display.setText(str(self.high_score))
         self.lines_cleared = 0
         self.lines_display.setText('0')
         self.held_piece = NO_T_mo
@@ -949,10 +950,13 @@ class Game(QFrame):
             self.start()
 
     def game_over(self):
-        #print('game over')
+        print('game over')
         self.timer.stop()
         self.isStarted = False
         self.isOver = True
+        if self.high_score < self.current_score :
+            self.high_score = self.current_score
+            self.high_display.setText(str(self.high_score))
         # TODO: make appropriate sound
     '''
     Take the next piece from the bag, refilling the bag if necessary, and
@@ -981,15 +985,18 @@ class Game(QFrame):
     '''
     def timerEvent(self, event:QEvent):
         event.accept()
-        #print('timer')
-        self.score_display.setText(str(self.current_score))
-        if not self.waitForNextTimer:
-            self.oneLineDown()
-        else:
-            self.waitForNextTimer = False
-            self.timer.stop()
-            self.timer.start( self.timeStep, self )
-            self.newPiece()
+        print('timer')
+        if self.isStarted:
+            self.score_display.setText(str(self.current_score))
+            if not self.waitForNextTimer:
+                self.oneLineDown()
+            else:
+                self.waitForNextTimer = False
+                self.timer.stop()
+                self.timer.start( self.timeStep, self )
+                self.newPiece()
+        else: # ignore possible timer while processing game_over
+            pass
     '''
     Process a key press. Any key press (not release) while the focus is
     in the board comes here. The key code is event.key() If the key is in
@@ -1141,15 +1148,7 @@ class Tetris(QMainWindow):
         '''
         self.move(self.settings.value("windowPosition", QPoint(50,50)))
         self.resize(self.settings.value("windowSize",QSize(500, 500)))
-        '''
-        Set High Score
-        --------------
 
-        Retrieve the previous high score.
-
-        TODO: decide where high score display goes and initialize it.
-        '''
-        self.high_score = self.settings.value("highScore",0)
         '''
         Initialize SFX
         --------------
@@ -1183,11 +1182,13 @@ class Tetris(QMainWindow):
         --------------------
 
         Create the game and make it the central widget.
+        Give it the saved high score from the settings.
         Make keyboard focus go to it.
         '''
-        self.game = Game(self, self.high_score, self.sfx)
+        self.game = Game(self, self.settings.value("highScore",0), self.sfx)
         self.setCentralWidget(self.game)
         self.setFocusProxy(self.game)
+
         '''
         Initialize the Toolbar
         ----------------------
@@ -1331,12 +1332,15 @@ class Tetris(QMainWindow):
     '''
     Reimplement QWindow.closeEvent to save our geometry, the current high
     score, and various UI values.
+
+    Note: it is not best design to fetch the possibly-changed high score by
+    reaching into the game object, assuming it has a high_score attribute.
     '''
     def closeEvent(self, event:QEvent):
         self.settings.clear()
         self.settings.setValue("windowSize",self.size())
         self.settings.setValue("windowPosition",self.pos())
-        self.settings.setValue("highScore",self.high_score)
+        self.settings.setValue("highScore",self.game.high_score)
         self.settings.setValue("volume",self.volume_slider.value())
         self.settings.setValue("mutestate",self.mute_action.isChecked())
         self.settings.setValue("mutedvol",self.muted_volume)
