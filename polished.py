@@ -800,7 +800,8 @@ class Game(QFrame):
         There are three blocks to the board:
             Left:    Held piece (TODO)
                      Lines cleared
-                     Score (TODO)
+                     Level
+                     Score
             Center:  The game board
             Right:   The Next piece preview
 
@@ -835,23 +836,31 @@ class Game(QFrame):
         left_vb.addWidget(self.held_display,1)
         left_vb.addStretch(2)
         '''
-        Create a grid layout for the three score numbers. Each row has a
+        Create a grid layout for the four score numbers. Each row has a
         QLabel for a caption, and QLabel to display the value. We keep a reference
         to the latter so its text can be updated as needed.
         '''
         score_grid = QGridLayout()
+
         lines_caption = self.make_label('Lines Cleared')
         score_grid.addWidget(lines_caption, 0, 0, 1, 1)
         self.lines_display = self.make_label()
         score_grid.addWidget(self.lines_display, 0, 1, 1, 1)
+
+        level_caption = self.make_label('Level')
+        score_grid.addWidget(level_caption, 1, 0, 1, 1)
+        self.level_display = self.make_label()
+        score_grid.addWidget(self.level_display, 1, 1, 1, 1)
+
         score_caption = self.make_label('Score')
-        score_grid.addWidget(score_caption, 1, 0, 1, 1)
+        score_grid.addWidget(score_caption, 2, 0, 1, 1)
         self.score_display = self.make_label()
-        score_grid.addWidget(self.score_display, 1, 1, 1, 1)
+        score_grid.addWidget(self.score_display, 2, 1, 1, 1)
+
         high_caption = self.make_label('High Score')
-        score_grid.addWidget(high_caption, 2, 0, 1, 1)
+        score_grid.addWidget(high_caption, 3, 0, 1, 1)
         self.high_display = self.make_label()
-        score_grid.addWidget(self.high_display, 2, 1, 1, 1)
+        score_grid.addWidget(self.high_display, 3, 1, 1, 1)
 
         left_vb.addLayout(score_grid)
         '''
@@ -903,6 +912,7 @@ class Game(QFrame):
         self.isOver = False
         self.timeStep = Game.StartingSpeed
         self.current_level = 0
+        self.level_display.setText('0')
         self.current_score = 0
         self.score_display.setText('0')
         self.high_display.setText(str(self.high_score))
@@ -1066,6 +1076,7 @@ class Game(QFrame):
             self.current_level = self.lines_cleared // Game.LinesPerLevel
             self.current_score += (1+self.current_level)*(100,300,500,800)[n-1]
             self.lines_display.setText( str(self.lines_cleared) )
+            self.level_display.setText( str(self.current_level) )
             self.timeStep = max(20,
                 int(Game.StartingSpeed * ( Game.TimeFactor ** self.current_level))
                                )
