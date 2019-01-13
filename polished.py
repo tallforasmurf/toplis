@@ -961,7 +961,7 @@ class Game(QFrame):
             self.start()
 
     def game_over(self):
-        print('game over')
+        #print('game over')
         self.timer.stop()
         self.isStarted = False
         self.isOver = True
@@ -998,7 +998,7 @@ class Game(QFrame):
     '''
     def timerEvent(self, event:QEvent):
         event.accept()
-        print('timer')
+        #print('timer')
         if self.isStarted:
             self.score_display.setText(str(self.current_score))
             if not self.waitForNextTimer:
