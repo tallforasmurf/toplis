@@ -819,9 +819,8 @@ class Game(QFrame):
         layout.addWidget(self.board,2)
         layout.addLayout(right_vb,1)
         '''
-        Create the T_mo last held, and a tiny Board in which to display it.
+        Create a tiny Board in which to display the T_mo last held.
         '''
-        self.held_piece = NO_T_mo
         self.held_display = Board(None,5,5)
         '''
         Create the numerical variables that hold the lines cleared and the
@@ -972,18 +971,23 @@ class Game(QFrame):
             self.high_display.setText(str(self.high_score))
         # TODO: make appropriate sound
     '''
-    Take the next piece from the bag, refilling the bag if necessary, and
-    put it on the board at the middle column and row 1 (second from top).
-    If it won't fit, the game is over.
+    Return the next piece from the bag, refilling the bag if necessary.
 
-    TODO: preview
+    TODO: this function runs the preview
+    '''
+    def nextPiece(self) -> T_mo:
+        if 0 == len(self.bag_of_pieces):
+            self.bag_of_pieces = self.make_bag()
+        return self.bag_of_pieces.pop()
+    '''
+    The current piece is finished, get the next piece. Put it on the board at
+    the middle column and row 1 (second from top). If it won't fit, the game
+    is over.
     '''
     def newPiece(self):
         #print('new piece')
-        if 0 == len(self.bag_of_pieces):
-            self.bag_of_pieces = self.make_bag()
         if self.board.testAndPlace(
-            new_piece=self.bag_of_pieces.pop(),
+            new_piece=self.nextPiece(),
             new_row=1,
             new_col=self.board.cols//2) == Board.OK :
             return
@@ -1035,7 +1039,7 @@ class Game(QFrame):
                 elif key in self.Keys_widdershins:
                     self.rotatePiece(toleft=True)
                 elif key in self.Keys_hold:
-                    pass # TODO WHAT IS HOLD AND HOW TO DO IT
+                    self.holdCurrentPiece()
                 elif key in self.Keys_pause:
                     self.pause()
         if not event.isAccepted():
@@ -1047,8 +1051,8 @@ class Game(QFrame):
 
     If it can't be moved down, place it into the board and return False.
 
-    Note we don't expect to get Board.LEFT/RIGHT returns when
-    moving down.
+    Note we don't expect to get Board.LEFT/RIGHT return codes from
+    testAndPlace when moving down.
     '''
     def oneLineDown(self):
         if self.board.testAndPlace(
@@ -1132,6 +1136,47 @@ class Game(QFrame):
         else :
             # TODO: make bonk noise
             return False
+    '''
+    The user has hit the key to hold the current piece. This feature
+    allows the user to store the current piece in the small board on
+    the left, for use later.
+
+    The help piece is kept as the currentPiece of self.held_display.
+
+    If there is no held piece yet, put the current piece there and
+    generate a new piece for the game board. When there exists a
+    previous held piece, swap it with the current piece.
+
+    Note that it is possible the held piece will not fit on the
+    board, depending on the current piece coordinates and other pieces
+    already on the board. In that case we make an error noise and
+    do not do the swap.
+
+    A subtle game point is that the held piece retains its current
+    orientation. New pieces always start in an expected orientation,
+    (e.g. flat for the I, J, and L) but if the current piece has been
+    rotated before it is held, it keeps that rotation. This may affect
+    whether it is possible to swap it back.
+    '''
+    def holdCurrentPiece(self):
+        piece_to_swap_in = self.held_display.currentPiece()
+        if piece_to_swap_in is NO_T_mo :
+            piece_to_swap_in = self.nextPiece()
+        piece_to_hold = self.board.currentPiece()
+        if self.board.testAndPlace(
+            new_piece=piece_to_swap_in,
+            new_row=self.board.currentRow(),
+            new_col=self.board.currentColumn() ) == Board.OK :
+            '''
+            Former held piece will fit on the game board, install
+            the swapped-out piece in the display.
+            '''
+            self.held_display.testAndPlace(piece_to_hold, 3, 3)
+        else :
+            '''
+            TODO: Can't make the swap, make a noise.
+            '''
+            pass
 
 '''
 Main Window
