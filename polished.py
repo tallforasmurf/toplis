@@ -1168,10 +1168,10 @@ class Game(QFrame):
             new_row=self.board.currentRow(),
             new_col=self.board.currentColumn() ) == Board.OK :
             '''
-            Former held piece will fit on the game board, install
+            Former held piece did fit on the game board, install
             the swapped-out piece in the display.
             '''
-            self.held_display.testAndPlace(piece_to_hold, 3, 3)
+            self.held_display.testAndPlace(piece_to_hold, new_row=2, new_col=2)
         else :
             '''
             TODO: Can't make the swap, make a noise.
