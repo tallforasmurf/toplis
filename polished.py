@@ -317,7 +317,7 @@ returns one of three values,
 Completing a Move
 -----------------
 
-The Board provides the `place()` method, which merges the current T_mo
+The Board provides the plant() method, which merges the current T_mo
 into the cells of the board.
 
 Next to be called is the `winnow()` method that looks for and removes
@@ -464,7 +464,7 @@ class Board(QFrame):
         self.repaint()
         return Board.OK
 
-    def place(self):
+    def plant(self):
         '''
         The current T_mo has reached its final resting place. Install it into the
         board cells so they will show its color and no longer appear empty to
@@ -473,7 +473,7 @@ class Board(QFrame):
         for (c,r) in self._current.coords:
             self.setCell(row=r+self._row, col=c+self._col, shape=self._current)
     '''
-    After place() has been called, winnow can be called to find out if any
+    After plant() has been called, winnow can be called to find out if any
     rows have been completely filled, and eliminate them. As many as four
     rows might have been filled (by a well-placed I piece). Filled rows need
     not be contiguous.
@@ -724,9 +724,11 @@ class Game(QFrame):
         self.isPaused = False
         self.isOver = False
         '''
-        Create the "bag" of upcoming T-mos.
+        Create the "bag" of upcoming T-mos, and the list of five
+        preview pieces.
         '''
         self.bag_of_pieces = [] # Type: typing.List[T_mo]
+        self.preview_list = [] # Type: typing.List[T_mo]
         '''
         Create sets of accepted keys, for quick reference during a
         keyPressEvent. The keys to be recognized are those listed in "4.1
@@ -863,13 +865,16 @@ class Game(QFrame):
 
         left_vb.addLayout(score_grid)
         '''
-        Populate the right VBox with the preview board.
+        Create a Board 5 rows wide by 15 rows high to display five
+        preview pieces. Install it in the right VBox.
         '''
-        #right_vb = QVBoxLayout()
-        #right_vb.addWidget( QLabel("Nonce"))
-        #layout.addChildLayout(right_vb)
-        right_vb.addWidget(QLabel('Preview!'))
-
+        self.preview_display = Board(None,rows=15,columns=5)
+        right_vb.addWidget(QLabel('Preview'),0,Qt.AlignCenter)
+        right_vb.addWidget(self.preview_display,0)
+        right_vb.addStretch()
+        '''
+        Layout is complete, intall it.
+        '''
         self.setLayout(layout)
         '''
         Initialize all the above.
@@ -901,7 +906,8 @@ class Game(QFrame):
         return label
 
     '''
-    Reset the game clearing everything.
+    Reset the game, clearing everything. This establishes the conditions that
+    are assumed to obtain when the game next starts.
     '''
     def clear(self):
         self.timer.stop()
@@ -919,21 +925,11 @@ class Game(QFrame):
         self.lines_display.setText('0')
         self.held_piece = NO_T_mo
         self.held_display.clear()
+        self.preview_display.clear()
         self.bag_of_pieces = self.make_bag()
+        self.preview_list = list(self.bag_of_pieces[0:5])
+        self.bag_of_pieces = self.bag_of_pieces[5:]
         self.update( self.contentsRect() ) # force a paint event
-
-    def make_bag(self) -> typing.List[T_mo] :
-        '''
-        Create a "bag" of seven Tetronimos in random order. They will be
-        consumed before another bag is requested. This prevents the
-        frustrations of a naive randomizer, where you can get many quick
-        repeats or many long droughts. With the bag system you never get more
-        than two identical pieces in a row, or go longer than 12 before
-        getting another of the same type.
-        '''
-        bag = [ T_mo(T_ShapeNames(v)) for v in range(1,8) ]
-        random.shuffle(bag)
-        return bag
     '''
     Begin or resume play. If the board has a current piece, we are
     resuming after a pause. Otherwise we need to start a piece.
@@ -971,14 +967,41 @@ class Game(QFrame):
             self.high_display.setText(str(self.high_score))
         # TODO: make appropriate sound
     '''
-    Return the next piece from the bag, refilling the bag if necessary.
+    Create a "bag" of seven Tetronimos in random order. They will be consumed
+    before another bag is requested. This prevents the frustrations of a
+    naive randomizer, where you can get many quick repeats or many long
+    droughts. With the bag system you never get more than two identical
+    pieces in a row, or go longer than 12 before getting that I-piece that
+    you are so desperate for.
+    '''
+    def make_bag(self) -> typing.List[T_mo] :
+        bag = [ T_mo(T_ShapeNames(v)) for v in range(1,8) ]
+        random.shuffle(bag)
+        return bag
+    '''
+    Return the next piece to play.
 
-    TODO: this function runs the preview
+    The queue of next pieces begins in the preview_list, which is a FIFO
+    queue of five pieces. The piece to return is the top one in that queue.
+    After removing it, we get the next piece from the "bag", refilling the
+    bag if necessary. Then we replenish the preview list, and refresh the
+    preview_display board.
     '''
     def nextPiece(self) -> T_mo:
+        next_piece = self.preview_list.pop(0)
         if 0 == len(self.bag_of_pieces):
             self.bag_of_pieces = self.make_bag()
-        return self.bag_of_pieces.pop()
+        self.preview_list.append(self.bag_of_pieces.pop())
+        '''
+        To refresh the preview display board, we first clear it. Then for each
+        piece in the preview list, we test-and-place it and
+        '''
+        self.preview_display.clear()
+        for i,t in enumerate(self.preview_list):
+            self.preview_display.testAndPlace(
+                new_piece=t, new_col=2, new_row=(i*3)+1 )
+            self.preview_display.plant()
+        return next_piece
     '''
     The current piece is finished, get the next piece. Put it on the board at
     the middle column and row 1 (second from top). If it won't fit, the game
@@ -1067,7 +1090,7 @@ class Game(QFrame):
         Cannot move this piece down, so it has reached its final position,
         so make it a permanent part of the board.
         '''
-        self.board.place()
+        self.board.plant()
         self.waitForNextTimer = True
         '''
         That may have filled one or more rows. Count the lines cleared
