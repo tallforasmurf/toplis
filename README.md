@@ -7,18 +7,23 @@ This is basically Jan Bodnar's PyQt5 Tetris, rewritten. It is a minimal, but pla
 
 I rewrote it because that was the fastest way to understand it. The original is a nice program, but not over-supplied with commentary. And it's quite subtle in some ways. My rewrite differs at these points:
 * Nomenclature and logic changed to match the [Official Tetris Guidelines](http://tetris.wikia.com/wiki/Tetris_Guideline), in particular,
-** standardized colors
-** use of a "7-bag randomizer" instead of raw random pieces
+
+* standardized colors
+* use of a "7-bag randomizer" instead of raw random pieces
 * Added copious commentary
 * Converted several loop-nests into tuple comprehensions
 * Some small changes to logic
 
 ## polished.py
-This is the above program with some bells and whistles added:
+This is the above program with many bells and whistles added:
+
 * Start and Pause buttons in the main window
-* display of the upcoming piece
-* timer interval shortens as number of filled lines goes up (optional)
-* "wall kick" feature added
+* timer interval shortens as number of filled lines goes up
+* remembers highest score
+* "wall kick" feature
+* ability to "hold" a piece
+* preview display of the five upcoming pieces
 
 ## toplis.py
-The above with the infinite height added so you can build up many unfilled lines and still recover.
+
+Will be the above with the infinite height added so you can build up many unfilled lines and still recover.
