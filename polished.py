@@ -1077,28 +1077,30 @@ class Game(QFrame):
     Note we don't expect to get Board.LEFT/RIGHT return codes from
     testAndPlace when moving down.
     '''
-    def oneLineDown(self):
+    def oneLineDown(self, move_sound=True):
         if self.board.testAndPlace(
             new_piece=self.board.currentPiece(),
             new_row=self.board.currentRow() + 1,
             new_col=self.board.currentColumn()) == Board.OK:
             # translated T_mo is happy where it is, current piece
             # has been updated to new position.
-            # TODO: make move noise
+            if move_sound: self.sfx['move'].play()
             return True
         '''
         Cannot move this piece down, so it has reached its final position,
         so make it a permanent part of the board.
         '''
-        self.board.plant()
         self.waitForNextTimer = True
+        self.sfx['settle'].play()
+        self.board.plant()
         '''
         That may have filled one or more rows. Count the lines cleared
         and adjust the timer interval based on how many lines have been cleared.
         '''
         n = self.board.winnow()
         if n :
-            # TODO make clearing noise
+            sound = self.sfx['tetris'] if n==4 else self.sfx['line']
+            sound.play()
             self.lines_cleared += n
             self.current_level = self.lines_cleared // Game.LinesPerLevel
             self.current_score += (1+self.current_level)*(100,300,500,800)[n-1]
@@ -1111,9 +1113,11 @@ class Game(QFrame):
     '''
     The user wants to slam the current piece to the bottom. Move it
     down repeatedly until it hits bottom.
+    Temp: use 'move' noise -- should it be different?
     '''
     def dropDown(self):
-        while self.oneLineDown() :
+        self.sfx['drop'].play()
+        while self.oneLineDown(move_sound=False) :
             self.current_score += 2
     '''
     The user has hit a key to move the current piece left or right
@@ -1124,9 +1128,9 @@ class Game(QFrame):
             new_piece=self.board.currentPiece(),
             new_row=self.board.currentRow(),
             new_col=X) == Board.OK :
-            # TODO: make move noise
+            self.sfx['move'].play()
             return True
-        # TODO: make bonk noise
+        self.sfx['bonk'].play()
         return False
     '''
     The user has hit a key to rotate the current piece.
@@ -1154,10 +1158,10 @@ class Game(QFrame):
                 new_col=self.board.currentColumn()-1 )
         # if the result (now) is OK, make rotate noise and return
         if result == Board.OK :
-            # TODO: make rotate noise
+            self.sfx['rotate'].play()
             return True
         else :
-            # TODO: make bonk noise
+            self.sfx['bonk'].play()
             return False
     '''
     The user has hit the key to hold the current piece. This feature
@@ -1194,11 +1198,10 @@ class Game(QFrame):
             Former held piece did fit on the game board, install
             the swapped-out piece in the display.
             '''
+            self.sfx['swap'].play()
             self.held_display.testAndPlace(piece_to_hold, new_row=2, new_col=2)
         else :
-            '''
-            TODO: Can't make the swap, make a noise.
-            '''
+            self.sfx['bonk'].play()
             pass
 
 '''
@@ -1209,6 +1212,7 @@ The main window contains the Game object. It
 
 * Provides a Toolbar with Pause and Restart buttons.
 * Displays high scores.
+* Implements the sound FX objects used by the Game.
 * Implements music including volume and on/off.
 * Records high scores in the Qt settings on shutdown.
 * Records the app geometry in the Qt settings and restores it on startup.
@@ -1253,11 +1257,17 @@ class Tetris(QMainWindow):
                 QApplication.instance().processEvents()
             return sfx
         self.sfx = dict()
-        self.sfx['move'] = makeSFX( 'move.wav' )
-        self.sfx['rotate'] = makeSFX('rotate.wav')
-        self.sfx['drop'] = makeSFX('drop.wav')
-        self.sfx['line'] = makeSFX('line.wav')
-        self.sfx['settle'] = makeSFX('settle.wav')
+        self.sfx['move'] = makeSFX( 'move.wav' ) # horizontal move
+        self.sfx['rotate'] = makeSFX('rotate.wav') # rotate
+        self.sfx['drop'] = makeSFX('drop.wav') # drop all the way
+        self.sfx['line'] = makeSFX('line.wav') # clear line(s)
+        self.sfx['settle'] = makeSFX('settle.wav') # piece stops, plants.
+        self.sfx['bonk'] = makeSFX('bonk.wav') # error, cannot do that
+        self.sfx['swap'] = makeSFX('swap.wav') # hold key
+        for (key,sound) in self.sfx.items() :
+            print(key)
+            sound.play()
+            QTest.qWait(500)
 
         '''
         Initialize the Game
@@ -1313,6 +1323,7 @@ class Tetris(QMainWindow):
             QIcon(QPixmap(':/icon_mute.png')),'Mute')
         self.mute_action.setCheckable(True)
         self.mute_action.triggered.connect(self.muteAction)
+
         self.volume_slider = QSlider(Qt.Horizontal)
         self.volume_slider.setTickPosition(QSlider.TicksBothSides)
         self.volume_slider.setRange(0,99)
@@ -1328,7 +1339,7 @@ class Tetris(QMainWindow):
         '''
         self.volume_slider.setValue(self.settings.value("volume",50))
         self.mute_action.setChecked(self.settings.value("mutestate",False))
-        self.muted_volume = self.settings.value("mutedvol",50)
+        self.muted_volume = self.settings.value("mutedvol",self.volume_slider.value())
         self.volumeAction(self.volume_slider.value())
 
 
@@ -1477,11 +1488,5 @@ if __name__ == '__main__' :
     '''
     the_main_window = Tetris(the_settings)
     the_main_window.show()
-
-    # Unit test
-    #for (key,sound) in the_main_window.sfx.items() :
-        #print(key)
-        #sound.play()
-        #QTest.qWait(500)
 
     the_app.exec_()

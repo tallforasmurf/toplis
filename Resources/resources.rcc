@@ -1,0 +1,17 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource>
+<file alias='icon_play.png'>icon_play.png</file>
+<file alias='icon_mute.png'>icon_mute.png</file>
+<file alias='icon_pause.png'>icon_pause.png</file>
+<file alias='icon_reset.png'>icon_reset.png</file>
+<file alias='icon_wedge.png'>icon_wedge.png</file>
+<file alias='move.wav'>move.wav</file>
+<file alias='rotate.wav'>rotate.wav</file>
+<file alias='drop.wav'>drop.wav</file>
+<file alias='settle.wav'>settle.wav</file>
+<file alias='line.wav'>line.wav</file>
+<file alias='tetris.wav'>tetris.wav</file>
+<file alias='bonk.wav'>bonk.wav</file>
+<file alias='swap.wav'>swap.wav</file>
+</qresource>
+</RCC>
