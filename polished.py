@@ -1264,10 +1264,10 @@ class Tetris(QMainWindow):
         self.sfx['settle'] = makeSFX('settle.wav') # piece stops, plants.
         self.sfx['bonk'] = makeSFX('bonk.wav') # error, cannot do that
         self.sfx['swap'] = makeSFX('swap.wav') # hold key
-        for (key,sound) in self.sfx.items() :
-            print(key)
-            sound.play()
-            QTest.qWait(500)
+        #for (key,sound) in self.sfx.items() :
+            #print(key)
+            #sound.play()
+            #QTest.qWait(500)
 
         '''
         Initialize the Game
