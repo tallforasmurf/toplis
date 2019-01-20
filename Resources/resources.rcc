@@ -14,5 +14,6 @@
 <file alias='tetris.wav'>tetris.wav</file>
 <file alias='bonk.wav'>bonk.wav</file>
 <file alias='swap.wav'>swap.wav</file>
+<file alias='theme.wav'>theme.wav</file>
 </qresource>
 </RCC>

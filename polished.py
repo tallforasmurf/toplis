@@ -916,6 +916,7 @@ class Game(QFrame):
         self.isStarted = False
         self.isPaused = False
         self.isOver = False
+        self.sfx['theme'].stop()
         self.timeStep = Game.StartingSpeed
         self.current_level = 0
         self.level_display.setText('0')
@@ -939,6 +940,7 @@ class Game(QFrame):
         if self.isOver :
             self.clear()
         self.isStarted = True
+        self.sfx['theme'].play()
         self.timer.start( self.timeStep, self )
         if self.board.currentPiece() is NO_T_mo :
             self.newPiece()
@@ -950,8 +952,9 @@ class Game(QFrame):
     def pause(self):
         self.isPaused = not self.isPaused
         if self.isPaused :
-            # stop the timer
+            # stop the timer and the music
             self.timer.stop()
+            self.sfx['theme'].stop()
         else :
             # P key wants to restart the game
             self.start()
@@ -959,6 +962,7 @@ class Game(QFrame):
     def game_over(self):
         #print('game over')
         self.timer.stop()
+        self.sfx['theme'].stop()
         self.isStarted = False
         self.isOver = True
         if self.high_score < self.current_score :
@@ -1265,6 +1269,7 @@ class Tetris(QMainWindow):
         self.sfx['bonk'] = makeSFX('bonk.wav') # error, cannot do that
         self.sfx['swap'] = makeSFX('swap.wav') # hold key
         self.sfx['tetris'] = makeSFX('tetris.wav') # 4-line clear
+        self.sfx['theme'] = makeSFX('theme.wav') # russalka!
         #for (key,sound) in self.sfx.items() :
             #print(key)
             #sound.play()
