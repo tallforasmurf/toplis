@@ -834,6 +834,7 @@ class Game(QFrame):
         '''
         The left VBox has the held-piece display at the top, then space.
         '''
+        left_vb.addWidget(QLabel('Held piece'),0,Qt.AlignCenter)
         left_vb.addWidget(self.held_display,1)
         left_vb.addStretch(2)
         '''
