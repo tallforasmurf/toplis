@@ -1320,8 +1320,9 @@ class Tetris(QMainWindow):
         it remembers its state.
         '''
         self.toolbar.addSeparator()
-        self.mute_action = self.toolbar.addAction(
-            QIcon(QPixmap(':/icon_mute.png')),'Mute')
+        self.mute_on_icon = QIcon(QPixmap(':/icon_mute_on.png'))
+        self.mute_off_icon = QIcon(QPixmap(':/icon_mute_off.png'))
+        self.mute_action = self.toolbar.addAction(self.mute_off_icon,'Mute')
         self.mute_action.setCheckable(True)
         self.mute_action.triggered.connect(self.muteAction)
 
@@ -1336,10 +1337,13 @@ class Tetris(QMainWindow):
         self.toolbar.addWidget(self.volume_slider)
         '''
         Recover the last volume value and last mute state from the settings.
+        Make sure the mute icon is appropriate to its saved setting.
         Call volumeAction to propogate the volume to the sfx objects.
         '''
         self.volume_slider.setValue(self.settings.value("volume",50))
         self.mute_action.setChecked(self.settings.value("mutestate",False))
+        self.mute_action.setIcon(
+            self.mute_on_icon if self.mute_action.isChecked() else self.mute_off_icon)
         self.muted_volume = self.settings.value("mutedvol",self.volume_slider.value())
         self.volumeAction(self.volume_slider.value())
 
@@ -1419,9 +1423,11 @@ class Tetris(QMainWindow):
     '''
     def muteAction(self, checked:bool):
         if checked :
+            self.mute_action.setIcon(self.mute_on_icon)
             self.muted_volume = self.volume_slider.value()
             self.volume_slider.setValue(0) # triggers entry to volumeAction
         else :
+            self.mute_action.setIcon(self.mute_off_icon)
             self.volume_slider.setValue(self.muted_volume)
     '''
     Reimplement QWindow.closeEvent to save our geometry, the current high

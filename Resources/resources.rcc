@@ -1,7 +1,8 @@
 <!DOCTYPE RCC><RCC version="1.0">
 <qresource>
 <file alias='icon_play.png'>icon_play.png</file>
-<file alias='icon_mute.png'>icon_mute.png</file>
+<file alias='icon_mute_off.png'>icon_spkr.png</file>
+<file alias='icon_mute_on.png'>icon_spkr_mute.png</file>
 <file alias='icon_pause.png'>icon_pause.png</file>
 <file alias='icon_reset.png'>icon_reset.png</file>
 <file alias='icon_wedge.png'>icon_wedge.png</file>
