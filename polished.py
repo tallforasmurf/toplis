@@ -962,10 +962,9 @@ class Game(QFrame):
         self.isStarted = False
         self.isOver = True
         if self.high_score < self.current_score :
-            #TODO: can we make the new high score flash a few times?
-            #TODO: make different end of game sound for new high score
             self.high_score = self.current_score
             self.high_display.setText(str(self.high_score))
+            QMessageBox.information(self,'HUZZAH!','New high score!')
         # TODO: make appropriate sound
     '''
     Create a "bag" of seven Tetronimos in random order. They will be consumed
