@@ -889,7 +889,7 @@ class Game(QFrame):
     def make_label(self,text:str = None):
         label = QLabel(self)
         font = QFont()
-        font.setPointSize(18)
+        font.setPointSize(16)
         font.setBold(True)
         font.setWeight(75)
         label.setFont(font)
@@ -1253,12 +1253,14 @@ class Tetris(QMainWindow):
         The disadvantage of having one object per sound is, that each one has
         to have its volume adjusted individually.
         '''
-        def makeSFX( path:str ) -> QSoundEffect :
+        def makeSFX( path:str, loop=False ) -> QSoundEffect :
             sfx = QSoundEffect()
             sfx.setSource(QUrl.fromLocalFile(':/'+path))
             sfx.setVolume(0.99)
             while not sfx.isLoaded():
                 QApplication.instance().processEvents()
+            if loop:
+                sfx.setLoopCount(QSoundEffect.Infinite)
             return sfx
         self.sfx = dict()
         self.sfx['move'] = makeSFX( 'move.wav' ) # horizontal move
@@ -1269,7 +1271,7 @@ class Tetris(QMainWindow):
         self.sfx['bonk'] = makeSFX('bonk.wav') # error, cannot do that
         self.sfx['swap'] = makeSFX('swap.wav') # hold key
         self.sfx['tetris'] = makeSFX('tetris.wav') # 4-line clear
-        self.sfx['theme'] = makeSFX('theme.wav') # russalka!
+        self.sfx['theme'] = makeSFX('theme.wav',loop=True) # russalka!
         #for (key,sound) in self.sfx.items() :
             #print(key)
             #sound.play()
@@ -1346,7 +1348,7 @@ class Tetris(QMainWindow):
         Call volumeAction to propogate the volume to the sfx objects.
         '''
         self.volume_slider.setValue(self.settings.value("volume",50))
-        self.mute_action.setChecked(self.settings.value("mutestate",False))
+        self.mute_action.setChecked( bool(self.settings.value("mutestate",False)) )
         self.mute_action.setIcon(
             self.mute_on_icon if self.mute_action.isChecked() else self.mute_off_icon)
         self.muted_volume = self.settings.value("mutedvol",self.volume_slider.value())
@@ -1447,7 +1449,7 @@ class Tetris(QMainWindow):
         self.settings.setValue("windowPosition",self.pos())
         self.settings.setValue("highScore",self.game.high_score)
         self.settings.setValue("volume",self.volume_slider.value())
-        self.settings.setValue("mutestate",self.mute_action.isChecked())
+        self.settings.setValue("mutestate", int(self.mute_action.isChecked()) )
         self.settings.setValue("mutedvol",self.muted_volume)
         super().closeEvent(event)
 
