@@ -18,6 +18,7 @@ I rewrote it because that was the fastest way to understand it. The original is 
 This is the above program with many bells and whistles added:
 
 * Start and Pause buttons in the main window
+* Music and sounds implemented
 * timer interval shortens as number of filled lines goes up
 * remembers highest score
 * "wall kick" feature
