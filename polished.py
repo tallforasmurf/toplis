@@ -665,14 +665,6 @@ The Game implements the rules of the game by responding appropriately to
 keystrokes and timer events to move the current piece and update the board
 when the current piece stops moving.
 
-TODO:
-    initialize the UI
-    implement the timer
-    implement keystrokes
-    implement piece movement
-    implement signal to parent on game over
-    implement signals to parent for SFX
-
 '''
 
 class Game(QFrame):
@@ -800,7 +792,7 @@ class Game(QFrame):
         '''
         Create the playing board and lay it out.
         There are three blocks to the board:
-            Left:    Held piece (TODO)
+            Left:    Held piece
                      Lines cleared
                      Level
                      Score
@@ -1347,11 +1339,11 @@ class Tetris(QMainWindow):
         Make sure the mute icon is appropriate to its saved setting.
         Call volumeAction to propogate the volume to the sfx objects.
         '''
-        self.volume_slider.setValue(self.settings.value("volume",50))
+        self.volume_slider.setValue( int(self.settings.value("volume",50)) )
         self.mute_action.setChecked( bool(self.settings.value("mutestate",False)) )
         self.mute_action.setIcon(
             self.mute_on_icon if self.mute_action.isChecked() else self.mute_off_icon)
-        self.muted_volume = self.settings.value("mutedvol",self.volume_slider.value())
+        self.muted_volume = int(self.settings.value("mutedvol",self.volume_slider.value()) )
         self.volumeAction(self.volume_slider.value())
 
 
