@@ -1464,15 +1464,11 @@ if __name__ == '__main__' :
     except : # whatever...
         random.seed()
     '''
-    Initialize the QT app including special handling for Linux
+    Initialize the QT app.
     '''
     from PyQt5.QtWidgets import QApplication
     import sys
-    args = []
-    if sys.platform.startswith('linux') :
-        # avoid a GTK bug in Ubuntu Unity
-        args = ['','-style','Cleanlooks']
-
+    args = [] # could pass e.g. ['-style','Fusion'] or other args
     the_app = QApplication( args )
     the_app.setOrganizationName( "TassoSoft" )
     the_app.setOrganizationDomain( "nodomain.org" )
