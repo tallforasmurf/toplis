@@ -1,5 +1,5 @@
 '''
-        Tetris implemented in PyQt
+    = Tetris implemented in PyQt
 
 This is an expansion of the simple game (see standard.py) using the same
 techniques, but adding full game features such as wall-kick, next-piece
@@ -64,13 +64,11 @@ import enum
 
 '''
 
-Tetronimo Object
-================
+== Tetronimo Object
 
 We begin by defining the Tetronimo, the basic game piece.
 
-Names of Shapes
----------------
+=== Names of Shapes
 
 Name the seven Tetronimoes via an IntEnum. Note that 'O', 'I', 'T' and so
 forth are the standardized names for the shapes, per the tetris wiki.
@@ -90,8 +88,7 @@ class T_ShapeNames(enum.IntEnum):
     Z = 7
 '''
 
-Colors of Tetronimos
---------------------
+=== Colors of Tetronimos
 
 Assign standardized colors for the Tetronimoes, as specified in the Tetris
 guidelines.
@@ -116,8 +113,7 @@ T_Colors = {
     }
 '''
 
-Tetronimo Shape and Initial Orientation
-----------------------------------------
+=== Tetronimo Shape and Initial Orientation
 
 Per the guidelines, quote,
 
@@ -148,8 +144,7 @@ while the L is:
                            (1,-1)
                 (-1,0)(0,0)(1,0)
 
-Tetronimo Rotation
-------------------
+=== Tetronimo Rotation
 
 This design has the very nice property that rotation is easy. To rotate a
 shape left, replace the tuples of the original shape with the tuple
@@ -190,8 +185,7 @@ T_Shapes = {
 
 '''
 
-Tetronimo Class Definition (T_mo)
----------------------------------
+=== Tetronimo Class Definition (T_mo)
 
 A Tetronimo knows its shape name and color, and its current shape in terms of
 a tuple of the four (c,r) values of each of its cells, initialized from
@@ -252,8 +246,7 @@ class T_mo(object):
 
 '''
 
-Global "N" T_mo
----------------
+=== Global "N" T_mo
 
 This global instance of T_mo is the only one of an 'N' tetronimo. It is
 referenced from any unoccupied board cell, giving empty cells their color.
@@ -263,8 +256,7 @@ Thus `x is NO_T_mo` is the test for an empty cell.
 NO_T_mo = T_mo( T_ShapeNames.N )
 '''
 
-The Board
-=========
+== The Board
 
 The Board object displays as an array of square cells. The number of rows and
 columns are initialization parameters. The main board of course is 10x20, but
@@ -280,8 +272,7 @@ The Board keeps a reference to a "current" T_mo. On the main board this is
 the T_mo that the user is controlling. During a paintEvent, this T_mo is
 drawn separately, after the other cells and on top of them.
 
-Board Geometry
---------------
+=== Board Geometry
 
 Board location is by row and column. Columns are numbered from 0 to
 self.cols, increasing from left to right. Rows are numbered from 0 to
@@ -295,8 +286,7 @@ The location of the center cell of the current T_mo is returned by
 currentColumn() and currentRow(). (The center cell is the one with value
 (0,0) in the T_Shapes table, and this remains true under rotation.)
 
-Testing a Move
---------------
+=== Testing a Move
 
 The Board provides the `testAndPlace()` method, which tests the four cells
 of a proposed T_mo against the Board margins and the existing cells. It
@@ -314,8 +304,7 @@ returns one of three values,
 
   * Board.RIGHT when it would fall outside the right margin.
 
-Completing a Move
------------------
+=== Completing a Move
 
 The Board provides the plant() method, which merges the current T_mo
 into the cells of the board.
@@ -323,8 +312,7 @@ into the cells of the board.
 Next to be called is the `winnow()` method that looks for and removes
 completed lines. The number of removed lines is returned.
 
-Retaining Cell Aspect Ratio
----------------------------
+=== Retaining Cell Aspect Ratio
 
 In order to ensure that all board cells are drawn as squares, the aspect
 ratio of the board must be preserved during a resize event. Supposedly this
@@ -344,6 +332,8 @@ CSS styling to set the padding of the board. Same idea.
 '''
 class Board(QFrame):
     '''
+    ==== Class Constants
+
     Values returned by testAndPlace()
     '''
     OK = 0
@@ -361,6 +351,9 @@ class Board(QFrame):
         padding-bottom: {}px ;
         padding-left: {}px ;
         }}
+    '''
+    '''
+    === Initialization
     '''
     def __init__(self, parent, rows:int, columns:int):
         super().__init__(parent)
@@ -421,6 +414,8 @@ class Board(QFrame):
         self.cells[row*self.cols + col] = shape
 
     '''
+    ==== Test and Place
+
     Test a tetronimo in a new position or orientation. This method is
     called when a new piece is first created, and when the active piece
     is rotated or translated.
@@ -464,15 +459,19 @@ class Board(QFrame):
         self.repaint()
         return Board.OK
 
+    '''
+    ==== Planting a piece
+
+    The current T_mo has reached its final resting place. Install it into the
+    board cells so they will show its color and no longer appear empty to
+    testAndPlace().
+    '''
     def plant(self):
-        '''
-        The current T_mo has reached its final resting place. Install it into the
-        board cells so they will show its color and no longer appear empty to
-        testAndPlace().
-        '''
         for (c,r) in self._current.coords:
             self.setCell(row=r+self._row, col=c+self._col, shape=self._current)
     '''
+    ==== Collecting filled rows
+
     After plant() has been called, winnow can be called to find out if any
     rows have been completely filled, and eliminate them. As many as four
     rows might have been filled (by a well-placed I piece). Filled rows need
@@ -514,6 +513,8 @@ class Board(QFrame):
 
         return len(full_rows)
     '''
+    === Paint Event
+
     A paint event occurs when the Qt app thinks this QFrame should be
     updated. The event handler is responsible for drawing all the shapes in
     the contents rectangle of this widget.
@@ -583,35 +584,39 @@ class Board(QFrame):
         painter.drawLine(x + self.cell_width - 1, y + self.cell_height - 1,
                          x + self.cell_width - 1, y + 1)
     '''
+    === Resize Event
+
     A resize event occurs once, before this widget is made visible (promised
     in the doc page for QWidget), and again whenever the user drags our
     parent widget to a new shape.
 
     The Board wants to maintain its aspect ratio A=self.rows/self.columns.
     Upon a resize event, look at the new height H and width W. If H/W is not
-    equal to A, adjust the style padding to restore the aspect ratio.
+    equal to A, adjust the style padding to restore the aspect ratio. We do
+    this using (wait for it...) ALGEBRA!
 
     Let A=rows/cols be the desired aspect ratio (A=2.2 for the main board).
-    Let B=H/W, the resized ratio.
+    Let B=H/W, the ratio after the resize.
 
     Suppose B<A, indicating that the width is greater than desired. (Actually
     the height has been reduced.) We want to effectively reduce the width by
     padding, to force the cell array back to about the A aspect ratio (at the
-    cost of shrinking the array in the frame).
+    cost of shrinking the array in the frame). We will do this by subtracting
+    a quantity of S pixels from the width:
 
-        A = H/W-S
-        A/H = 1/W-S
+        A = H/(W-S)
+        A/H = 1/(W-S)
         H/A = W-S
-        H/A-W = S
+        (H/A)-W = S
 
     Set the left and right padding to S pixels, equally divided.
 
     Suppose B>A, indicating the width is too narrow, or the height is too much.
-    Reduce the height by padding with T pixels:
+    We will reduce our height by padding with T pixels:
 
-        A = H-T/W
-        WA = H-T
-        WA-H = T
+        A = (H-T)/W
+        W*A = H-T
+        (W*A)-H = T
 
     Set the top and bottom padding to T pixels, equally divided.
     '''
@@ -654,8 +659,7 @@ class Board(QFrame):
 
 '''
 
-The Game Class
-==============
+== The Game Class
 
 The Game is a frame that contains the playing field (a Board), and shows a
 preview of the upcoming T_mo (also a Board), a display of the current count
@@ -669,6 +673,8 @@ when the current piece stops moving.
 
 class Game(QFrame):
     '''
+    === Class Constants
+
     Initial game-step-time in milliseconds.
     '''
     StartingSpeed = 750
@@ -677,11 +683,17 @@ class Game(QFrame):
     '''
     LinesPerLevel = 10
     '''
-    Time reduction factor: game step time is multipled by this
-    after every LinesPerLevel lines have been cleared.
+    Time reduction factor: game step time is multipled by this after every
+    LinesPerLevel lines have been cleared -- giving a shorter timer interval
+    and increasing the difficulty.
+    TODO: increase this to 0.875, for a 1/8th change per level not 1/4th!
     '''
     TimeFactor = 0.75
 
+    '''
+    === Game Initialization
+
+    '''
     def __init__(self, parent, high_score, sfx_dict):
         super().__init__()
         '''
@@ -722,20 +734,28 @@ class Game(QFrame):
         self.bag_of_pieces = [] # Type: typing.List[T_mo]
         self.preview_list = [] # Type: typing.List[T_mo]
         '''
+        ==== Define Keystroke Constants
+
         Create sets of accepted keys, for quick reference during a
         keyPressEvent. The keys to be recognized are those listed in "4.1
-        Table of Basic Controls" in the Tetris guidelines. The frozenset
+        Table of Basic Controls" in the Tetris guidelines.
 
         The names of keys and modifier codes are defined in the Qt namespace,
-        see http://doc.qt.io/qt-5/qt.html#Key-enum. For simple recognition we
-        take the modifier value and OR it with the key code.
+        see doc.qt.io/qt-5/qt.html#Key-enum. It defines key values as 32-bit ints with
+        some of the high bits zero. It defines the modifiers (Shift, Control, Alt etc)
+        as ints with single high bits set.
 
-        We create a set of the key values that command each operation. For
-        speed we use frozenset. The frozenset constructor requires an
-        iterator as its argument; we give it a tuple, hence lots of parens.
+        For simple recognition we take the modifier value and OR it with the
+        key code. Then we create a `set` of the key values that command each operation. If a key
+        is `in` that set, it commands that operation.
+
+        For speed we use `frozenset` which is just like `set` but can't be
+        added-to. The frozenset constructor requires an iterator as its
+        argument; we give it a tuple of expressions, each defining a relevant
+        keystroke. A downside of this is majorly nested parens!
 
         Note: on the macbook (at least) the arrow keys have the keypad bit
-        set. Don't know about other platforms.
+        set. Don't know about other platforms, defining it both ways.
         '''
         self.Keys_left = frozenset((
             int(Qt.Key_Left),
@@ -781,8 +801,8 @@ class Game(QFrame):
             int(Qt.Key_F1)
             ))
         '''
-        Merge the sets of accepted keys into one set so we can make a very
-        fast "Do we handle this key?" test.
+        Now merge the sets of accepted keys into one set so we can make a
+        very fast "Do we handle this key?" test.
         '''
         self.validKeys = frozenset(
             self.Keys_left | self.Keys_right | self.Keys_hard_drop | \
@@ -790,13 +810,18 @@ class Game(QFrame):
             self.Keys_widdershins | self.Keys_hold | self.Keys_pause
             )
         '''
-        Create the playing board and lay it out.
+        ==== Lay out the playing board
+
         There are three blocks to the board:
+
             Left:    Held piece
                      Lines cleared
                      Level
                      Score
+                     High Score
+
             Center:  The game board
+
             Right:   The Next piece preview
 
         Create the game board.
@@ -866,17 +891,19 @@ class Game(QFrame):
         right_vb.addWidget(self.preview_display,0)
         right_vb.addStretch()
         '''
-        Layout is complete, intall it.
+        Layout is complete, install it.
         '''
         self.setLayout(layout)
         '''
-        Initialize all the above.
+        Put initial values in all the above.
         '''
         self.clear()
     '''
+    ==== Make QLabels
+
     Take the job of creating a QLabel for caption or score out of line.
     Caption label has a text, and is a raised panel. Score label has no
-    text and is a sunken panel. Code from a .uic file.
+    text and is a sunken panel. Code taken from a QtCreator .uic file.
     '''
     def make_label(self,text:str = None):
         label = QLabel(self)
@@ -899,6 +926,8 @@ class Game(QFrame):
         return label
 
     '''
+    === Reset button
+
     Reset the game, clearing everything. This establishes the conditions that
     are assumed to obtain when the game next starts.
     '''
@@ -925,6 +954,8 @@ class Game(QFrame):
         self.bag_of_pieces = self.bag_of_pieces[5:]
         self.update( self.contentsRect() ) # force a paint event
     '''
+    === Play button
+
     Begin or resume play. If the board has a current piece, we are
     resuming after a pause. Otherwise we need to start a piece.
     '''
@@ -937,6 +968,8 @@ class Game(QFrame):
         if self.board.currentPiece() is NO_T_mo :
             self.newPiece()
     '''
+    === Pause button
+
     The Pause icon has been clicked (in which case isPaused must be False,
     because the icon is grayed out while paused), or the P key has been
     pressed to toggle pausing (in which case isPaused could be true).
@@ -950,7 +983,10 @@ class Game(QFrame):
         else :
             # P key wants to restart the game
             self.start()
+    '''
+    === Game over
 
+    '''
     def game_over(self):
         #print('game over')
         self.timer.stop()
@@ -963,6 +999,8 @@ class Game(QFrame):
             QMessageBox.information(self,'HUZZAH!','New high score!')
         # TODO: make appropriate sound
     '''
+    === Generating Pieces
+
     Create a "bag" of seven Tetronimos in random order. They will be consumed
     before another bag is requested. This prevents the frustrations of a
     naive randomizer, where you can get many quick repeats or many long
@@ -1012,6 +1050,8 @@ class Game(QFrame):
             return
         self.game_over()
     '''
+    === Timer Event
+
     A timer has expired. Normally this means it is time to move the
     current piece down one line.
 
@@ -1034,10 +1074,16 @@ class Game(QFrame):
         else: # ignore possible timer while processing game_over
             pass
     '''
-    Process a key press. Any key press (not release) while the focus is
-    in the board comes here. The key code is event.key() If the key is in
-    self.validKeys, we can handle the event. Otherwise pass it to our
-    parent.
+    === Keystroke Event
+
+    Process a key press. Any key press (not release) while the focus is in
+    the board comes here. The key and modifier codes event.key() and
+    event.modifiers(). If the key is in self.validKeys, we can handle the
+    event. Otherwise pass it to our parent.
+
+    TODO: right now this is an if/else stack. Could it be converted to
+    a dict lookup for faster performance?
+
     '''
     def keyPressEvent(self, event:QEvent):
         if self.isStarted and self.board.currentPiece() is not NO_T_mo :
@@ -1065,6 +1111,7 @@ class Game(QFrame):
             '''either we are paused or not one of our keys'''
             super().keyPressEvent(event)
     '''
+    === Move Down
     Move the active T_mo down one line, either because the timer expired
     or a soft-drop key was pressed. If successful, return True.
 
@@ -1107,6 +1154,8 @@ class Game(QFrame):
                                )
         return False
     '''
+    === Drop Down
+
     The user wants to slam the current piece to the bottom. Move it
     down repeatedly until it hits bottom.
     Temp: use 'move' noise -- should it be different?
@@ -1116,6 +1165,8 @@ class Game(QFrame):
         while self.oneLineDown(move_sound=False) :
             self.current_score += 2
     '''
+    === Move Left or Right
+
     The user has hit a key to move the current piece left or right
     '''
     def moveSideways(self, toleft:bool) :
@@ -1129,6 +1180,8 @@ class Game(QFrame):
         self.sfx['bonk'].play()
         return False
     '''
+    === Rotate
+
     The user has hit a key to rotate the current piece.
     '''
     def rotatePiece(self, toleft:bool ) :
@@ -1160,11 +1213,13 @@ class Game(QFrame):
             self.sfx['bonk'].play()
             return False
     '''
+    === Hold
+
     The user has hit the key to hold the current piece. This feature
     allows the user to store the current piece in the small board on
     the left, for use later.
 
-    The help piece is kept as the currentPiece of self.held_display.
+    The held piece is kept as the currentPiece of the Board, self.held_display.
 
     If there is no held piece yet, put the current piece there and
     generate a new piece for the game board. When there exists a
@@ -1201,8 +1256,7 @@ class Game(QFrame):
             pass
 
 '''
-Main Window
-===========
+== Main Window
 
 The main window contains the Game object. It
 
@@ -1222,8 +1276,7 @@ class Tetris(QMainWindow):
         self.settings = settings
         self.setWindowTitle('Tetris')
         '''
-        Set Geometry
-        ------------
+        === Set Geometry
 
         Recover the main window geometry from settings. Resize and position
         the default window to that geometry.
@@ -1232,8 +1285,7 @@ class Tetris(QMainWindow):
         self.resize(self.settings.value("windowSize",QSize(500, 500)))
 
         '''
-        Initialize SFX
-        --------------
+        === Initialize SFX
 
         Create sound effect objects for each of the .wav files loaded in the
         resources module: move, rotate, drop (manual), settle, line. Load them into
@@ -1270,11 +1322,12 @@ class Tetris(QMainWindow):
             #QTest.qWait(500)
 
         '''
-        Initialize the Game
-        --------------------
+        === Initialize the Game
 
         Create the game and make it the central widget.
+
         Give it the saved high score from the settings.
+
         Make keyboard focus go to it.
         '''
         self.game = Game(self, self.settings.value("highScore",0), self.sfx)
@@ -1282,8 +1335,7 @@ class Tetris(QMainWindow):
         self.setFocusProxy(self.game)
 
         '''
-        Initialize the Toolbar
-        ----------------------
+        === Initialize the Toolbar
 
         Create the ToolBar and populate it with our actions. Connect
         each action's actionTriggered signal to its relevant slot.
@@ -1348,6 +1400,8 @@ class Tetris(QMainWindow):
 
 
     '''
+    === Control tool button state
+
     Whenever the game state changes, enable or disable some combination of
     the control buttons.
     * Pause is enabled if the game is running and not paused.
@@ -1363,12 +1417,9 @@ class Tetris(QMainWindow):
             self.game.isStarted )
 
     '''
-    Define Control Actions
-    ----------------------
+    === Play button
 
-    These "slots" receive clicks on the control buttons.
-
-    Play button: because of enableButtons(), this is only entered when the game
+    Because of enableButtons(), this is only entered when the game
     state is either not-started, or paused.
     '''
     def playAction(self, toggled:bool):
@@ -1378,13 +1429,18 @@ class Tetris(QMainWindow):
             self.game.start()
         self.enableButtons()
     '''
-    Pause button: enableButtons ensures that Pause will only be
-    enabled if the game is running.
+    === Pause button
+
+    enableButtons ensures that Pause will only be enabled if the game is
+    running.
     '''
     def pauseAction(self, toggled:bool):
         self.game.pause() # toggle to paused state
         self.enableButtons()
+    '''
+    === Reset button
 
+    '''
     def resetAction(self, toggled:bool):
         ans = QMessageBox.question(
             self, 'Reset clicked', 'Reset the game? State will be lost.' )
@@ -1392,7 +1448,9 @@ class Tetris(QMainWindow):
             self.game.clear()
             self.game.start()
     '''
-    This slot is called from the valueChanged signal of the volume slider,
+    === Volume change and Mute
+
+    This action is called from the valueChanged signal of the volume slider,
     which can be the result of the user dragging the slider, or the program
     setting the value of the slider, as in muteAction below.
 
@@ -1429,6 +1487,8 @@ class Tetris(QMainWindow):
             self.mute_action.setIcon(self.mute_off_icon)
             self.volume_slider.setValue(self.muted_volume)
     '''
+    === Close Event
+
     Reimplement QWindow.closeEvent to save our geometry, the current high
     score, and various UI values.
 
@@ -1447,18 +1507,28 @@ class Tetris(QMainWindow):
 
 
 '''
-Command-line execution.
-TODO: decide on command parameters to support if any
-TODO: define command parameters with argparse
+== Program Start and Initialization
 
-currently this is basically unit test
+Process command-line arguments if any,
+
+* TODO: decide on command parameters to support if any
+* TODO: if any, define command parameters with argparse
+
+(Temporary: initialize the random seed from argv[1] if given)
+
+* Initialize the QApplication.
+* Load binary resources (sounds, icons)
+* Initialize the QSettings object where game state is kept
+* Start the event loop
+
 '''
 
 if __name__ == '__main__' :
     '''
-    Initialize the random seed from the command line if there is an
-    argument and it is convertable to int. Otherwise don't.
+    Temporary: Initialize the random seed from the command line if there is
+    an argument and it is convertable to int. Otherwise don't.
     '''
+    import sys
     try :
         random.seed( int( sys.argv[1] ) )
     except : # whatever...
@@ -1467,15 +1537,32 @@ if __name__ == '__main__' :
     Initialize the QT app.
     '''
     from PyQt5.QtWidgets import QApplication
-    import sys
-    args = [] # could pass e.g. ['-style','Fusion'] or other args
+    '''
+    args is a list of strings such as might be passed on a command line to
+    the QApplication. Here we are passing an empty list. A list of some
+    valid args is at doc.qt.io/qt-5/qguiapplication.html#QGuiApplication
+    A further list is at doc.qt.io/qt-5/qapplication.html#QApplication
+    '''
+    args = [] # e.g. ['-style','Fusion']
     the_app = QApplication( args )
+    '''
+    The following settings establish where the QSettings will be saved.
+    These names are used in different ways on different platforms.
+
+    Linux: $HOME/.config/<org name>/<appname>.conf
+
+    Mac OSX: $HOME/Library/Preferences/com.<org name>.<app name>.plist
+
+    Windows (registry): HKEY_CURRENT_USER\Software\<org name>\<app name>
+    '''
     the_app.setOrganizationName( "TassoSoft" )
-    the_app.setOrganizationDomain( "nodomain.org" )
+    the_app.setOrganizationDomain( "nodomain.nil" )
     the_app.setApplicationName( "Tetris" )
     '''
-    Load the resources (icons) from resources.py, which was
-    prepared using pyrrc5. This has to be done after the app is set up.
+    Load the resources from resources.py. That file was created
+    from the binary sound and icon files pyrrc5. During the import,
+    generated code in resources.py identifies each resource by filename
+    to the QApplication so later they can be opened using ':/filename'
     '''
     import resources
     '''
