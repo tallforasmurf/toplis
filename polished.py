@@ -686,9 +686,8 @@ class Game(QFrame):
     Time reduction factor: game step time is multipled by this after every
     LinesPerLevel lines have been cleared -- giving a shorter timer interval
     and increasing the difficulty.
-    TODO: increase this to 0.875, for a 1/8th change per level not 1/4th!
     '''
-    TimeFactor = 0.75
+    TimeFactor = 0.875
 
     '''
     === Game Initialization
