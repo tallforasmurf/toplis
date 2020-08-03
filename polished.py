@@ -1,3 +1,7 @@
+#!/usr/bin/python
+# -*- coding: UTF8 -*-
+from __future__ import annotations
+
 '''
     = Tetris implemented in PyQt
 
@@ -235,11 +239,11 @@ class T_mo(object):
     Just in case at some point we need to sub-class the T_mo, we create the
     new object using type(self)() instead of naming the class explicitly.
     '''
-    def rotateLeft(self) :
+    def rotateLeft(self) -> T_mo:
         new_tmo = type(self)( self.t_name )
         new_tmo.coords = tuple( ((r,-c) for (c,r) in self.coords ) )
         return new_tmo
-    def rotateRight(self) :
+    def rotateRight(self) -> T_mo :
         new_tmo = type(self)( self.t_name )
         new_tmo.coords = tuple( ((-r,c) for (c,r) in self.coords ) )
         return new_tmo
