@@ -138,7 +138,7 @@ five I- or Z-tetronimoes close together then go without them for 50 turns.
 '''
 
 def make_bag() -> typing.List[T_ShapeNames] :
-    bag = [ T_ShapeNames(v) for v in range(1,7) ]
+    bag = [ T_ShapeNames(v) for v in range(1,8) ]
     random.shuffle(bag)
     return bag
 
@@ -245,7 +245,6 @@ timerEvent that is used to drop the current T_mo. The timer is stopped during
 a pause and restarted.
 
 '''
-
 class Board(QFrame):
 
     '''
@@ -711,7 +710,6 @@ class Tetris(QMainWindow):
         '''
         self.tboard.start()
         self.show()
-
 
     def center(self):
         '''centers the window on the screen'''
