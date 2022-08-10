@@ -1032,8 +1032,10 @@ class Game(QFrame):
         '''
         self.preview_display.clear()
         for i,t in enumerate(self.preview_list):
+            r = (i*3)+1
+            if t.t_name == T_ShapeNames.O : r -= 1
             self.preview_display.testAndPlace(
-                new_piece=t, new_col=2, new_row=(i*3)+1 )
+                new_piece=t, new_col=2, new_row=r )
             self.preview_display.plant()
         return next_piece
     '''
