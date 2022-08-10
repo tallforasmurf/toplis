@@ -9,6 +9,7 @@ This is an expansion of the simple game (see standard.py) using the same
 techniques, but adding full game features such as wall-kick, next-piece
 preview, score records, and sound. In general game play conforms to the
 Tetris Guideline for play as described at
+
     http://tetris.wikia.com/wiki/Tetris_Wiki
 
 The GUI structure is based on a QMainWindow. The provided Tool Bar offers
@@ -25,7 +26,7 @@ small Board showing the currently "held" piece if any.
 
 '''
 
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QFormLayout,
     QFrame,
     QGridLayout,
@@ -38,7 +39,7 @@ from PyQt5.QtWidgets import (
     QToolBar,
     QVBoxLayout
     )
-from PyQt5.QtCore import (
+from PyQt6.QtCore import (
     Qt,
     QBasicTimer,
     QEvent,
@@ -48,20 +49,16 @@ from PyQt5.QtCore import (
     QSize,
     pyqtSignal
     )
-from PyQt5.QtGui import (
+from PyQt6.QtGui import (
     QColor,
     QFont,
     QIcon,
     QPainter,
     QPixmap
     )
-from PyQt5.QtMultimedia import (
-    QMediaContent,
-    QMediaPlayer,
-    QSoundEffect
-)
-from PyQt5.QtCore import QUrl
-from PyQt5.QtTest import QTest # for qWait
+from PyQt6.QtMultimedia import QSoundEffect
+from PyQt6.QtCore import QUrl
+from PyQt6.QtTest import QTest # for qWait
 import typing
 import random
 import enum
@@ -372,7 +369,7 @@ class Board(QFrame):
         '''
         self.setMinimumHeight(int(10*rows))
         self.setMinimumWidth(int(10*columns))
-        sp = QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+        sp = QSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.MinimumExpanding)
         self.setSizePolicy(sp)
         '''
         The board contents is rows*columns cells, each referring to a T_mo.
@@ -708,7 +705,7 @@ class Game(QFrame):
         '''
         Direct all keystrokes seen by a contained widget, to this widget.
         '''
-        self.setFocusPolicy(Qt.StrongFocus)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         '''
         Create the timer that sets the pace of the game.
         Create the timer interval, initially StartingSpeed.
@@ -761,47 +758,47 @@ class Game(QFrame):
         set. Don't know about other platforms, defining it both ways.
         '''
         self.Keys_left = frozenset((
-            int(Qt.Key_Left),
-            int(Qt.KeypadModifier)|int(Qt.Key_Left),
-            int(Qt.KeypadModifier)|int(Qt.Key_4)
+            int(Qt.Key.Key_Left),
+            int(Qt.KeyboardModifier.KeypadModifier.value)|int(Qt.Key.Key_Left),
+            int(Qt.KeyboardModifier.KeypadModifier.value)|int(Qt.Key.Key_4)
             ))
         self.Keys_right = frozenset((
-            int(Qt.Key_Right),
-            int(Qt.KeypadModifier)|int(Qt.Key_Right),
-            int(Qt.KeypadModifier)|int(Qt.Key_6)
+            int(Qt.Key.Key_Right),
+            int(Qt.KeyboardModifier.KeypadModifier.value)|int(Qt.Key.Key_Right),
+            int(Qt.KeyboardModifier.KeypadModifier.value)|int(Qt.Key.Key_6)
             ))
         self.Keys_hard_drop = frozenset((
-            int(Qt.Key_Space),
-            int(Qt.KeypadModifier)|int(Qt.Key_8)
+            int(Qt.Key.Key_Space),
+            int(Qt.KeyboardModifier.KeypadModifier.value)|int(Qt.Key.Key_8)
             ))
         self.Keys_soft_drop = frozenset((
-            int(Qt.Key_D),
-            int(Qt.KeypadModifier)|int(Qt.Key_2)
+            int(Qt.Key.Key_D),
+            int(Qt.KeyboardModifier.KeypadModifier.value)|int(Qt.Key.Key_2)
             ))
         self.Keys_clockwise = frozenset((
-            int(Qt.Key_Up),
-            int(Qt.KeypadModifier)|int(Qt.Key_Up),
-            int(Qt.Key_X),
-            int(Qt.KeypadModifier)|int(Qt.Key_1),
-            int(Qt.KeypadModifier)|int(Qt.Key_5),
-            int(Qt.KeypadModifier)|int(Qt.Key_9)
+            int(Qt.Key.Key_Up),
+            int(Qt.KeyboardModifier.KeypadModifier.value)|int(Qt.Key.Key_Up),
+            int(Qt.Key.Key_X),
+            int(Qt.KeyboardModifier.KeypadModifier.value)|int(Qt.Key.Key_1),
+            int(Qt.KeyboardModifier.KeypadModifier.value)|int(Qt.Key.Key_5),
+            int(Qt.KeyboardModifier.KeypadModifier.value)|int(Qt.Key.Key_9)
             ))
         self.Keys_widdershins = frozenset((
-            int(Qt.Key_Down),
-            int(Qt.KeypadModifier)|int(Qt.Key_Down),
-            int(Qt.Key_Z),
-            int(Qt.KeypadModifier)|int(Qt.Key_3),
-            int(Qt.KeypadModifier)|int(Qt.Key_7)
+            int(Qt.Key.Key_Down),
+            int(Qt.KeyboardModifier.KeypadModifier.value)|int(Qt.Key.Key_Down),
+            int(Qt.Key.Key_Z),
+            int(Qt.KeyboardModifier.KeypadModifier.value)|int(Qt.Key.Key_3),
+            int(Qt.KeyboardModifier.KeypadModifier.value)|int(Qt.Key.Key_7)
             ))
         self.Keys_hold = frozenset((
-            int(Qt.Key_Shift),
-            int(Qt.Key_C),
-            int(Qt.KeypadModifier)|int(Qt.Key_0)
+            int(Qt.Key.Key_Shift),
+            int(Qt.Key.Key_C),
+            int(Qt.KeyboardModifier.KeypadModifier.value)|int(Qt.Key.Key_0)
             ))
         self.Keys_pause = frozenset((
-            int(Qt.Key_P),
-            int(Qt.Key_Escape),
-            int(Qt.Key_F1)
+            int(Qt.Key.Key_P),
+            int(Qt.Key.Key_Escape),
+            int(Qt.Key.Key_F1)
             ))
         '''
         Now merge the sets of accepted keys into one set so we can make a
@@ -854,7 +851,7 @@ class Game(QFrame):
         '''
         The left VBox has the held-piece display at the top, then space.
         '''
-        left_vb.addWidget(QLabel('Held piece'),0,Qt.AlignCenter)
+        left_vb.addWidget(QLabel('Held piece'),0,Qt.AlignmentFlag.AlignCenter)
         left_vb.addWidget(self.held_display,1)
         left_vb.addStretch(2)
         '''
@@ -890,7 +887,7 @@ class Game(QFrame):
         preview pieces. Install it in the right VBox.
         '''
         self.preview_display = Board(None,rows=15,columns=5)
-        right_vb.addWidget(QLabel('Preview'),0,Qt.AlignCenter)
+        right_vb.addWidget(QLabel('Preview'),0,Qt.AlignmentFlag.AlignCenter)
         right_vb.addWidget(self.preview_display,0)
         right_vb.addStretch()
         '''
@@ -917,13 +914,13 @@ class Game(QFrame):
         label.setFont(font)
         if text: # caption
             #label.setFrameShadow(QFrame.Raised)
-            label.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+            label.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
             label.setText(text)
         else:
-            label.setFrameShape(QFrame.Panel)
+            label.setFrameShape(QFrame.Shape.Panel)
             label.setLineWidth(2)
-            label.setFrameShadow(QFrame.Sunken)
-            label.setAlignment(Qt.AlignCenter)
+            label.setFrameShadow(QFrame.Shadow.Sunken)
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             label.setText('0')
             label.setMinimumWidth(80)
         return label
@@ -1090,7 +1087,7 @@ class Game(QFrame):
     '''
     def keyPressEvent(self, event:QEvent):
         if self.isStarted and self.board.currentPiece() is not NO_T_mo :
-            key = int(event.key()) | int(event.modifiers())
+            key = int(event.key()) | int(event.modifiers().value)
             if key in self.validKeys :
                 event.accept() # Tell Qt, we got this one
                 if key in self.Keys_left:
@@ -1307,7 +1304,7 @@ class Tetris(QMainWindow):
             while not sfx.isLoaded():
                 QApplication.instance().processEvents()
             if loop:
-                sfx.setLoopCount(QSoundEffect.Infinite)
+                sfx.setLoopCount(QSoundEffect.Loop.Infinite.value)
             return sfx
         self.sfx = dict()
         self.sfx['move'] = makeSFX( 'move.wav' ) # horizontal move
@@ -1380,8 +1377,8 @@ class Tetris(QMainWindow):
         self.mute_action.setCheckable(True)
         self.mute_action.triggered.connect(self.muteAction)
 
-        self.volume_slider = QSlider(Qt.Horizontal)
-        self.volume_slider.setTickPosition(QSlider.TicksBothSides)
+        self.volume_slider = QSlider(Qt.Orientation.Horizontal)
+        self.volume_slider.setTickPosition(QSlider.TickPosition.TicksBothSides) # 3
         self.volume_slider.setRange(0,99)
         self.volume_slider.setTickInterval(25)
         self.volume_slider.setMaximumWidth(250)
@@ -1447,7 +1444,7 @@ class Tetris(QMainWindow):
     def resetAction(self, toggled:bool):
         ans = QMessageBox.question(
             self, 'Reset clicked', 'Reset the game? State will be lost.' )
-        if ans == QMessageBox.Ok or ans == QMessageBox.Yes :
+        if ans == QMessageBox.StandardButton.Ok or ans == QMessageBox.StandardButton.Yes :
             self.game.clear()
             self.game.start()
     '''
@@ -1539,7 +1536,7 @@ if __name__ == '__main__' :
     '''
     Initialize the QT app.
     '''
-    from PyQt5.QtWidgets import QApplication
+    from PyQt6.QtWidgets import QApplication
     '''
     args is a list of strings such as might be passed on a command line to
     the QApplication. Here we are passing an empty list. A list of some
@@ -1571,7 +1568,7 @@ if __name__ == '__main__' :
     '''
     Access the QSettings object used by the main window.
     '''
-    from PyQt5.QtCore import QSettings
+    from PyQt6.QtCore import QSettings
     the_settings = QSettings()
     '''
     Create the main window (which creates everything else), passing
@@ -1581,4 +1578,4 @@ if __name__ == '__main__' :
     the_main_window = Tetris(the_settings)
     the_main_window.show()
 
-    the_app.exec_()
+    the_app.exec()

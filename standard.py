@@ -1,7 +1,7 @@
 '''
         Basic Tetris
 
-This is a Tetris game implemented using PyQt5.
+This is a Tetris game implemented using PyQt6.
 
 It is basically a line-by-line rewrite of Jan Bodnar's "Tetris in PyQt"
 tutorial found at: http://zetcode.com/gui/pyqt5/tetris/
@@ -14,19 +14,18 @@ In particular it uses the standard colors and a "7-bag randomizer".
 '''
 
 
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QApplication,
-    QDesktopWidget,
     QFrame,
     QMainWindow
     )
-from PyQt5.QtCore import (
+from PyQt6.QtCore import (
     Qt,
     QBasicTimer,
     QEvent,
     pyqtSignal
     )
-from PyQt5.QtGui import (
+from PyQt6.QtGui import (
     QColor,
     QPainter
     )
@@ -270,7 +269,7 @@ class Board(QFrame):
         Set Qt properties of this widget.
         TODO: constrain dimensions so cells stay square on stretch
         '''
-        self.setFocusPolicy(Qt.StrongFocus)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         '''
         Create the timer that sets the pace of the game.
         '''
@@ -290,9 +289,9 @@ class Board(QFrame):
         Create a list of accepted keys, for quick reference during a
         keyPressEvent.
         '''
-        self.validKeys = [ Qt.Key_Left, Qt.Key_Right, Qt.Key_D,
-                           Qt.Key_Down, Qt.Key_Up, Qt.Key_Space,
-                           Qt.Key_P ]
+        self.validKeys = [ Qt.Key.Key_Left, Qt.Key.Key_Right,
+                           Qt.Key.Key_D, Qt.Key.Key_Down, Qt.Key.Key_Up,
+                           Qt.Key.Key_Space, Qt.Key.Key_P ]
         '''
         Create a reference to the active T_mo and the index of its center cell.
         '''
@@ -422,19 +421,19 @@ class Board(QFrame):
             key = event.key()
             if key in self.validKeys :
                 event.accept() # Tell Qt, we got this one
-                if key == Qt.Key_P:
+                if key == Qt.Key.Key_P:
                     self.togglePause()
-                elif key == Qt.Key_Left:
+                elif key == Qt.Key.Key_Left:
                     self.tryMove(self.curPiece, self.curX - 1, self.curY)
-                elif key == Qt.Key_Right:
+                elif key == Qt.Key.Key_Right:
                     self.tryMove(self.curPiece, self.curX + 1, self.curY)
-                elif key == Qt.Key_Down:
+                elif key == Qt.Key.Key_Down:
                     self.tryMove(self.curPiece.rotateRight(), self.curX, self.curY)
-                elif key == Qt.Key_Up:
+                elif key == Qt.Key.Key_Up:
                     self.tryMove(self.curPiece.rotateLeft(), self.curX, self.curY)
-                elif key == Qt.Key_Space:
+                elif key == Qt.Key.Key_Space:
                     self.dropDown()
-                elif key == Qt.Key_D:
+                elif key == Qt.Key.Key_D:
                     self.oneLineDown()
         if not event.isAccepted():
             '''either we are paused or not one of our keys'''
@@ -704,7 +703,7 @@ class Tetris(QMainWindow):
         at shutdown.
         '''
         self.resize(180, 380)
-        self.center()
+        #self.center()
         '''
         Start the game.
         '''
@@ -714,7 +713,7 @@ class Tetris(QMainWindow):
     def center(self):
         '''centers the window on the screen'''
 
-        screen = QDesktopWidget().screenGeometry()
+        #screen = QDesktopWidget().screenGeometry()
         size = self.geometry()
         self.move((screen.width()-size.width())/2,
             (screen.height()-size.height())/2)
@@ -738,4 +737,4 @@ if __name__ == '__main__':
     app = QApplication([])
     tetris = Tetris()
     tetris.show
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
